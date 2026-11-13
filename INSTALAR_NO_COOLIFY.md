@@ -99,3 +99,13 @@ O `docker-compose.yml` incluso usa o mesmo Dockerfile e já declara o volume `hu
 ## Verificação antes de atender clientes
 
 Entre no painel, monte um orçamento de teste, confirme a entrada e confira estoque/arte. Reinicie a aplicação e confirme que o pedido continua salvo. Só depois de revisar os dados demonstrativos use para vendas reais.
+
+## Atualização 1.0.1 — abertura por HTTP
+
+Corrigida a criação dos identificadores do carrinho/pedido para funcionar também em endereços `http://...sslip.io`. Em alguns navegadores, a versão anterior podia ficar em branco logo depois de abrir. O código agora usa geração segura de identificadores disponível nesse contexto e mantém os identificadores fortes criados pelo servidor para acesso aos pedidos.
+
+Atualize os arquivos no mesmo repositório e faça Redeploy. Mantenha o volume `/data` e as variáveis já configuradas. Não é necessário recriar nem limpar o banco.
+
+A imagem também passa a incluir `curl` para o healthcheck HTTP do Coolify. Se usar o check pelo painel: método GET, esquema HTTP, host localhost, porta 3000, caminho `/healthz`. Se deixar o check do painel desativado, permanece a verificação nativa do Dockerfile usando Node.
+
+Para o uso real com clientes e login administrativo, configure HTTPS no domínio antes de receber senhas e dados de pedidos.
