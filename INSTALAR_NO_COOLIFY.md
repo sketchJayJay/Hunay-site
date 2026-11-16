@@ -109,3 +109,16 @@ Atualize os arquivos no mesmo repositório e faça Redeploy. Mantenha o volume `
 A imagem também passa a incluir `curl` para o healthcheck HTTP do Coolify. Se usar o check pelo painel: método GET, esquema HTTP, host localhost, porta 3000, caminho `/healthz`. Se deixar o check do painel desativado, permanece a verificação nativa do Dockerfile usando Node.
 
 Para o uso real com clientes e login administrativo, configure HTTPS no domínio antes de receber senhas e dados de pedidos.
+
+## Atualização 1.1.0 — coleções e variações
+
+Atualize os arquivos no mesmo repositório e faça **Redeploy**, mantendo o mesmo volume em `/data` e as variáveis atuais. Não recrie a aplicação nem limpe o banco. A migração é aplicada automaticamente uma única vez e preserva os cadastros e pedidos anteriores.
+
+No painel:
+
+1. **Produtos e estoque:** edite ou crie o produto, marque que tem variações e cadastre cada cor com foto, preço e estoque próprios. Cadastre a garrafa de 600 ml em **Garrafas**. Informe unidades disponíveis, sem as já reservadas. Se um produto já tem unidades reservadas, mantenha seu tipo de estoque e crie um novo produto para o modelo com cores.
+2. **Coleções e estampas:** crie as estampas, informe o nome da coleção (Natal, por exemplo), envie a imagem sem o nome e escolha os campos que o cliente pode alterar. Confira a posição do nome na prévia. O cliente sempre pode editar o nome; a loja controla a frase e os elementos.
+3. **Configurações:** confirme o WhatsApp com DDD. O orçamento salva a cor, o tipo de personalização, a estampa e as instruções. Depois o cliente abre o WhatsApp e envia o resumo para combinar o pagamento.
+4. **Pedidos:** confirme manualmente o recebimento da entrada. A reserva continua exigindo pelo menos 50% do total e desconta somente a cor pedida. A aprovação da arte continua pelo atendimento.
+
+A opção **A Hunay cria minha arte** permite pedir a personalização sem usar o editor. O cliente informa o nome, o tema ou uma referência; a loja prepara a arte depois de confirmar a entrada. Não há integração de pagamento nem IA nesta versão.
