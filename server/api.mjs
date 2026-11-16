@@ -1,9 +1,11 @@
 import { env } from './runtime.mjs';
-import { admin, bootstrap, database, fail, getProducts, getSettings, int, shapeOrder, str } from './store.mjs';
-import { categories, statuses,              } from './catalog.mjs';
+import { admin, bootstrap, database, fail, getProducts, getTemplates, getSettings, int, shapeOrder, str } from './store.mjs';
+import { categories, decorations } from './catalog.mjs';
+import {writeProduct,updateOrderInventory} from './inventory.mjs';
 export const dynamic='force-dynamic';
 const json=(x        ,status=200)=>Response.json(x,{status,headers:{'Cache-Control':'no-store'}});
 const safeImage=(v       )=>v.startsWith('/images/')||/^\/api\/product-image\/[a-zA-Z0-9.-]+$/.test(v);
+function selectedVariant(p,id){if(!p.hasVariants){if(id)throw new Error('Esta opção de cor não está mais disponível.');return null;}const v=p.variants.find(v=>v.id===id);if(!v)throw new Error('Selecione uma cor disponível para '+p.name+'.');return v;}
 async function shipping(b    ){
  const cfg=await getSettings(); const cep=str(b.cep).replace(/\D/g,'');
  const options      =[{id:'pickup',name:'Retirada na loja',price:0,days:0,detail:cfg.pickupAddress}];
@@ -11,7 +13,7 @@ async function shipping(b    ){
  let connected=Boolean(env.MELHOR_ENVIO_TOKEN && cfg.originCep.length===8);
  if(connected && cep.length===8){
   const catalog=await getProducts();
-  const products=(b.items||[]).map((i    )=>{const p=catalog.find(p=>p.id===i.productId);if(!p)throw new Error('Produto indisponível.');return {id:p.id,width:p.width,height:p.height,length:p.length,weight:p.weight,insurance_value:p.price/100,quantity:int(i.qty,1,500)};});
+  const products=(b.items||[]).map((i    )=>{const p=catalog.find(p=>p.id===i.productId);if(!p)throw new Error('Produto indisponível.');const v=selectedVariant(p,i.variantId);return {id:p.id+(v?'-'+v.id:''),width:p.width,height:p.height,length:p.length,weight:p.weight,insurance_value:(v?.price??p.price)/100,quantity:int(i.qty,1,500)};});
   if(!products.length)throw new Error('Adicione produtos para calcular o frete.');
   const r=await fetch('https://melhorenvio.com.br/api/v2/me/shipment/calculate',{method:'POST',headers:{Authorization:`Bearer ${env.MELHOR_ENVIO_TOKEN}`,'Content-Type':'application/json',Accept:'application/json','User-Agent':'Hunay Personalizados'},body:JSON.stringify({from:{postal_code:cfg.originCep},to:{postal_code:cep},products,services:'1,2'})});
   if(!r.ok)throw new Error('Não foi possível consultar o frete agora. Escolha frete a combinar ou tente novamente.');
@@ -31,7 +33,7 @@ async function route(req        ,parts         ){
  const url=new URL(req.url);const path=parts.join('/'); const method=req.method;
  if(method!=='GET'&&req.headers.get('origin')&&req.headers.get('origin')!==url.origin)return fail('Origem da solicitação inválida.',403);
  if(method!=='GET'&&Number(req.headers.get('content-length')||0)>9000000)return fail('Pedido muito grande. Reduza as imagens.',413);
- if(path==='store'&&method==='GET'){await bootstrap();const [products,settings,isAdmin]=await Promise.all([getProducts(),getSettings(),admin()]);return json({products,settings,isAdmin,shippingConnected:!!env.MELHOR_ENVIO_TOKEN});}
+ if(path==='store'&&method==='GET'){await bootstrap();const [products,templates,settings,isAdmin]=await Promise.all([getProducts(),getTemplates(),getSettings(),admin()]);return json({products,templates,settings,isAdmin,shippingConnected:!!env.MELHOR_ENVIO_TOKEN});}
  if(path==='shipping'&&method==='POST'){return json(await shipping(await req.json()));}
  if(path==='orders'&&method==='POST'){
   await bootstrap();const b    =await req.json();if(JSON.stringify(b).length>9000000)return fail('Pedido muito grande.',413);
@@ -39,17 +41,31 @@ async function route(req        ,parts         ){
   const prior=await database().prepare('SELECT id,code,access_token,total FROM orders WHERE id=?').bind(id).first();if(prior)return json(prior);
   const name=str(b.name,100),phone=str(b.phone,20).replace(/\D/g,'');if(name.length<3||phone.length<10||phone.length>13)return fail('Informe seu nome e um WhatsApp válido.');
   if(!Array.isArray(b.items)||b.items.length<1||b.items.length>20)return fail('Adicione de 1 a 20 itens ao orçamento.');
-  const catalog=await getProducts();let subtotal=0;const used=new Map               ();const items      =[];
+  const catalog=await getProducts(),templates=await getTemplates();let subtotal=0;const used=new Map();const items=[];
   for(let n=0;n<b.items.length;n++){
-   const i=b.items[n];const p=catalog.find(p=>p.id===i.productId);if(!p)return fail('Um produto não está mais disponível.');const qty=int(i.qty,1,500);used.set(p.id,(used.get(p.id)||0)+qty);if(used.get(p.id) >p.stock)return fail(`Estoque insuficiente para ${p.name}. Atualize o carrinho.`);
-   subtotal+=p.price*qty;const design=i.design?{text:str(i.design.text,50),phrase:str(i.design.phrase,100),font:str(i.design.font,40),color:str(i.design.ink,20),template:str(i.design.template,20),photoX:Number(i.design.x)||0,photoY:Number(i.design.y)||0,photoScale:Number(i.design.scale)||1}:null;
-   items.push({productId:p.id,name:p.name,image:p.image,price:p.price,qty,design,art:{}});
+   const i=b.items[n];const p=catalog.find(p=>p.id===i.productId);if(!p)return fail('Um produto não está mais disponível.');
+   const v=selectedVariant(p,i.variantId),qty=int(i.qty,1,500),stockKey=p.id+':'+(v?.id||'');used.set(stockKey,(used.get(stockKey)||0)+qty);if(used.get(stockKey)>(v?.stock??p.stock))return fail(`Estoque insuficiente para ${p.name}${v?' · '+v.name:''}. Atualize o carrinho.`);
+   const mode=i.mode||(i.design?'custom':'shop');if(!['shop','collection','custom'].includes(mode))return fail('Escolha como deseja personalizar seu presente.');
+   if(mode!=='shop'&&!p.customizable)return fail('Este produto recebe a arte com atendimento da Hunay.');
+   let source=i.design,stamp=null;
+   if(mode==='collection'){
+    stamp=templates.find(t=>t.id===i.templateId);
+    if(!stamp||stamp.productIds.length&&!stamp.productIds.includes(p.id))return fail('A estampa escolhida não está disponível para este produto.');
+    if(!source||!str(source.text,50))return fail('Informe o nome para a estampa.');
+    source={...source,phrase:stamp.allowPhrase?str(source.phrase,100):stamp.phrase,font:stamp.font,ink:stamp.ink,template:stamp.allowElements&&decorations.some(([id])=>id===source.template)?source.template:stamp.template,background:stamp.image,nameX:stamp.nameX,nameY:stamp.nameY};
+   }
+   if(mode==='custom'&&!source)return fail('Salve sua personalização antes de continuar.');
+   const request=mode==='shop'?{name:str(i.request?.name,100),brief:str(i.request?.brief,1500)}:null;
+   if(i.mode==='shop'&&!request.name&&!request.brief&&!i.request?.reference)return fail('Conte a ideia da arte que a Hunay vai preparar.');
+   const design=mode!=='shop'&&source?{text:str(source.text,50),phrase:str(source.phrase,100),font:str(source.font,40),color:str(source.ink,20),template:str(source.template,20),background:stamp?.image||'',nameX:stamp?.nameX??50,nameY:stamp?.nameY??50,photoX:Number(source.x)||0,photoY:Number(source.y)||0,photoScale:Number(source.scale)||1}:null;
+   const price=v?.price??p.price;subtotal+=price*qty;
+   items.push({productId:p.id,name:p.name,image:v?.image||p.image,price,qty,variantId:v?.id||'',variantName:v?.name||'',mode,templateId:stamp?.id||'',collectionName:stamp?.collection||'',templateName:stamp?.name||'',request,design,art:{}});
   }
   const quote=await shipping({cep:b.cep,items:b.items});const selected=quote.options.find(x=>x.id===b.shippingId);if(!selected)return fail('Selecione uma opção de entrega válida.');
   if(selected.id!=='pickup' && str(b.cep).replace(/\D/g,'').length!==8)return fail('Informe o CEP para entrega.');
   const address=str(b.address,350);if(selected.id!=='pickup'&&address.length<8)return fail('Informe o endereço completo de entrega.');
   const total=subtotal+(selected.price||0),token=crypto.randomUUID()+crypto.randomUUID();
-  for(let n=0;n<items.length;n++){const d=b.items[n].design;if(d){for(const kind of ['color','bw','original'])if(d[kind])items[n].art[kind]=await saveArt(id,`${n}-${kind}`,d[kind]);}}
+  for(let n=0;n<items.length;n++){const d=b.items[n].design;if(items[n].mode!=='shop'&&d){for(const kind of ['color','bw','original'])if(d[kind])items[n].art[kind]=await saveArt(id,`${n}-${kind}`,d[kind]);}if(items[n].mode==='shop'&&b.items[n].request?.reference)items[n].art.original=await saveArt(id,`${n}-reference`,b.items[n].request.reference);}
   const code='HN-'+new Date().toISOString().slice(2,10).replace(/-/g,'')+'-'+id.slice(0,5).toUpperCase(),now=new Date().toISOString();
   const delivery={...selected,cep:quote.cep,address,subtotal,productionDays:quote.productionDays};
   await database().batch([database().prepare('INSERT INTO orders(id,code,access_token,name,phone,status,total,paid,reserved,items,shipping,notes,desired_date,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,code,token,name,phone,'orcamento',total,0,0,JSON.stringify(items),JSON.stringify(delivery),str(b.notes,1500),str(b.desiredDate,10),now,now),database().prepare('INSERT INTO events(id,order_id,message,created_at) VALUES(?,?,?,?)').bind(crypto.randomUUID(),id,'Orçamento recebido pelo site.',now)]);
@@ -74,11 +90,26 @@ async function route(req        ,parts         ){
    const data=await req.formData();const f=data.get('file');if(!(f instanceof File)||!['image/png','image/jpeg','image/webp'].includes(f.type)||f.size>2500000)return fail('Envie PNG, JPG ou WebP de até 2,5 MB.');const key=crypto.randomUUID()+'.'+(f.type==='image/jpeg'?'jpg':f.type.split('/')[1]);await env.BUCKET?.put('products/'+key,await f.arrayBuffer(),{httpMetadata:{contentType:f.type}});return json({url:'/api/product-image/'+key});
   }
   if(path==='admin/products'&&method==='POST'){
-   const b    =await req.json();const id=str(b.id,100)||crypto.randomUUID();if(!/^[a-z0-9-]+$/i.test(id))return fail('Identificador inválido.');const name=str(b.name,100);if(name.length<3||!categories.includes(b.category)||b.category==='Todos')return fail('Informe nome e categoria.');const price=int(b.price,1),stock=int(b.stock,0,99999),image=str(b.image,200);if(!safeImage(image))return fail('Use uma imagem enviada ao catálogo.');
-   const p        ={id,name,price,stock,image,category:b.category,description:str(b.description,1500),badge:str(b.badge,40),color:/^#[0-9a-f]{6}$/i.test(b.color)?b.color:'#d5a598',weight:Number(b.weight),height:Number(b.height),width:Number(b.width),length:Number(b.length),customizable:!!b.customizable,type:['mug','tumbler','notebook','pen','kit'].includes(b.type)?b.type:'mug'};
+   const b=await req.json();const id=str(b.id,100)||crypto.randomUUID();if(!/^[a-z0-9-]+$/i.test(id))return fail('Identificador inválido.');const name=str(b.name,100);if(name.length<3||!categories.includes(b.category)||b.category==='Todos')return fail('Informe nome e categoria.');const price=int(b.price,1),image=str(b.image,200);if(!safeImage(image))return fail('Use uma imagem enviada ao catálogo.');
+   const hasVariants=!!b.hasVariants,variants=[];
+   if(hasVariants){
+    if(!Array.isArray(b.variants)||!b.variants.length||b.variants.length>30)return fail('Cadastre de 1 a 30 cores do produto.');
+    for(const raw of b.variants){const vid=str(raw.id,100)||crypto.randomUUID(),name=str(raw.name,60),photo=str(raw.image,200)||image;if(!/^[a-z0-9-]+$/i.test(vid)||variants.some(v=>v.id===vid)||!name)return fail('Informe cores com identificadores únicos e nome.');if(!safeImage(photo))return fail('Use uma foto enviada para cada cor.');variants.push({id:vid,name,color:/^#[0-9a-f]{6}$/i.test(raw.color)?raw.color:'#d5a598',image:photo,price:int(raw.price,1),stock:int(raw.stock,0,99999)});}
+   }
+   const stock=hasVariants?variants.reduce((s,v)=>s+v.stock,0):int(b.stock,0,99999);
+   const p={id,name,price:hasVariants?Math.min(...variants.map(v=>v.price)):price,stock,image,category:b.category,description:str(b.description,1500),badge:str(b.badge,40),color:/^#[0-9a-f]{6}$/i.test(b.color)?b.color:'#d5a598',weight:Number(b.weight),height:Number(b.height),width:Number(b.width),length:Number(b.length),customizable:!!b.customizable,type:['mug','tumbler','notebook','pen','kit'].includes(b.type)?b.type:'mug',hasVariants,variants};
    if([p.weight,p.height,p.width,p.length].some(n=>!Number.isFinite(n)||n<=0||n>1000))return fail('Preencha peso e medidas positivos.');
-   await db.prepare('INSERT INTO products(id,data,stock,active) VALUES(?,?,?,1) ON CONFLICT(id) DO UPDATE SET data=excluded.data,stock=excluded.stock,active=1').bind(id,JSON.stringify(p),stock).run();return json({product:p});
+   writeProduct(p);return json({product:p});
   }
+  if(path==='admin/templates'&&method==='POST'){
+   const b=await req.json(),id=str(b.id,100)||crypto.randomUUID();if(!/^[a-z0-9-]+$/i.test(id))return fail('Identificador inválido.');
+   const name=str(b.name,100),collection=str(b.collection,80),image=str(b.image,200);if(name.length<3||collection.length<2)return fail('Informe o nome da coleção e da estampa.');if(image&&!safeImage(image))return fail('Use uma imagem enviada para a estampa.');
+   if(!decorations.some(([id])=>id===b.template)||!['Georgia','Arial','cursive','Trebuchet MS'].includes(b.font)||!/^#[0-9a-f]{6}$/i.test(b.ink))return fail('Confira os detalhes da estampa.');
+   const catalog=await getProducts(),productIds=Array.isArray(b.productIds)?[...new Set(b.productIds.map(x=>str(x,100)))]:[];if(productIds.some(id=>!catalog.some(p=>p.id===id&&p.customizable)))return fail('Escolha produtos disponíveis que permitam personalização.');
+   const t={id,name,collection,image,productIds,description:str(b.description,1000),template:b.template,font:b.font,ink:b.ink,phrase:str(b.phrase,100),nameX:int(b.nameX,10,90),nameY:int(b.nameY,20,75),allowPhrase:!!b.allowPhrase,allowElements:!!b.allowElements};
+   await db.prepare('INSERT INTO design_templates(id,data,active) VALUES(?,?,1) ON CONFLICT(id) DO UPDATE SET data=excluded.data,active=1').bind(id,JSON.stringify(t)).run();return json({template:t});
+  }
+  if(parts[1]==='templates'&&parts[2]&&method==='DELETE'){await db.prepare('UPDATE design_templates SET active=0 WHERE id=?').bind(parts[2]).run();return json({ok:true});}
   if(parts[1]==='products'&&parts[2]&&method==='DELETE'){await db.prepare('UPDATE products SET active=0 WHERE id=?').bind(parts[2]).run();return json({ok:true});}
   if(path==='admin/settings'&&method==='PUT'){
    const b    =await req.json();const whatsapp=str(b.whatsapp,20).replace(/\D/g,'');if(whatsapp&&!/^\d{10,13}$/.test(whatsapp))return fail('WhatsApp inválido. Inclua DDD.');const prefix=str(b.localPrefix,8).replace(/\D/g,'');
@@ -86,16 +117,10 @@ async function route(req        ,parts         ){
    if(next.originCep&&next.originCep.length!==8)return fail('CEP de origem inválido.');await db.prepare('INSERT INTO settings(id,data) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data').bind('store',JSON.stringify(next)).run();return json({settings:next});
   }
   if(parts[1]==='orders'&&parts[2]&&method==='PATCH'){
-   const row    =await db.prepare('SELECT * FROM orders WHERE id=?').bind(parts[2]).first();if(!row)return fail('Pedido não encontrado.',404);const b    =await req.json();const status=str(b.status,30);if(!statuses[status])return fail('Etapa inválida.');const delivery=JSON.parse(row.shipping);if(b.freight!==undefined&&delivery.id!=='pickup'&&b.status!=='cancelado'){delivery.price=int(b.freight,0,9999999);if(delivery.id==='consult')delivery.name='Envio pelos Correios';}const total=delivery.subtotal+(delivery.price||0);const paid=int(b.paid,0,total);if(row.status==='cancelado')return fail('Pedidos cancelados não podem ser reabertos. Crie um novo orçamento.');
-   if(['arte','aprovacao','producao','pronto','entregue'].includes(status)&&paid<Math.ceil(total/2))return fail('Confirme pelo menos 50% de entrada para iniciar a arte e a produção.');
-   const items=JSON.parse(row.items),statements                      =[];const reserving=paid>=Math.ceil(total/2)&&status!=='cancelado';const restore=(status==='cancelado'||!reserving)&&row.reserved;
-   if(reserving&&!row.reserved){for(const i of items)statements.push(db.prepare('UPDATE products SET stock=stock-? WHERE id=? AND EXISTS(SELECT 1 FROM orders WHERE id=? AND reserved=0)').bind(i.qty,i.productId,row.id));}
-   if(restore){for(const i of items)statements.push(db.prepare('UPDATE products SET stock=stock+? WHERE id=? AND EXISTS(SELECT 1 FROM orders WHERE id=? AND reserved=1)').bind(i.qty,i.productId,row.id));}
-   const now=new Date().toISOString();statements.push(db.prepare('UPDATE orders SET status=?,paid=?,reserved=?,total=?,shipping=?,updated_at=? WHERE id=?').bind(status,paid,reserving?1:0,total,JSON.stringify(delivery),now,row.id),db.prepare('INSERT INTO events(id,order_id,message,created_at) VALUES(?,?,?,?)').bind(crypto.randomUUID(),row.id,`${statuses[status]} · recebido R$ ${(paid/100).toFixed(2).replace('.',',')}`,now));
-   try{await db.batch(statements);}catch(e){if(String(e).includes('stock_nonnegative'))return fail('Estoque insuficiente para reservar este pedido. Reponha o produto antes de confirmar a entrada.');throw e;}return json({ok:true});
+   return json(updateOrderInventory(parts[2],await req.json()));
   }
   if(path==='admin/export'&&method==='GET'){
-   const [products,settings,orders,events]=await Promise.all([db.prepare('SELECT * FROM products').all(),getSettings(),db.prepare('SELECT * FROM orders ORDER BY created_at DESC').all(),db.prepare('SELECT * FROM events').all()]);return new Response(JSON.stringify({exportedAt:new Date().toISOString(),notice:'Exportação de cadastros e pedidos. Baixe as artes separadamente no pedido.',products:products.results,settings,orders:orders.results,events:events.results},null,2),{headers:{'Content-Type':'application/json','Content-Disposition':'attachment; filename="hunay-cadastros-pedidos.json"'}});
+   const [products,variants,templates,settings,orders,events]=await Promise.all([db.prepare('SELECT * FROM products').all(),db.prepare('SELECT * FROM product_variants').all(),db.prepare('SELECT * FROM design_templates').all(),getSettings(),db.prepare('SELECT * FROM orders ORDER BY created_at DESC').all(),db.prepare('SELECT * FROM events').all()]);return new Response(JSON.stringify({exportedAt:new Date().toISOString(),notice:'Exportação de cadastros e pedidos. Baixe as artes separadamente no pedido.',products:products.results,variants:variants.results,templates:templates.results,settings,orders:orders.results,events:events.results},null,2),{headers:{'Content-Type':'application/json','Content-Disposition':'attachment; filename="hunay-cadastros-pedidos.json"'}});
   }
  }
  return fail('Não encontrado.',404);

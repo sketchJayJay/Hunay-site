@@ -1,7 +1,18 @@
-export type Product = { id:string; name:string; category:string; price:number; stock:number; image:string; description:string; badge:string; color:string; weight:number; width:number; height:number; length:number; customizable:boolean; type:string; active?:number };
+export type ProductVariant = { id:string; name:string; color:string; image:string; price:number; stock:number };
+export type Product = { id:string; name:string; category:string; price:number; stock:number; image:string; description:string; badge:string; color:string; weight:number; width:number; height:number; length:number; customizable:boolean; type:string; active?:number; hasVariants?:boolean; variants?:ProductVariant[] };
+export type ArtTemplate = { id:string; collection:string; name:string; description:string; productIds:string[]; template:string; font:string; ink:string; phrase:string; image:string; nameX:number; nameY:number; allowPhrase:boolean; allowElements:boolean };
+export const decorations=[['minimal','Essencial'],['botanico','Botânico'],['coracoes','Corações'],['natal','Natal']];
+export const blankTemplate:ArtTemplate={id:'',collection:'',name:'',description:'',productIds:[],template:'minimal',font:'Georgia',ink:'#ad7564',phrase:'',image:'',nameX:50,nameY:50,allowPhrase:false,allowElements:false};
+export const seedTemplates:ArtTemplate[]=[
+ {...blankTemplate,id:'natal-afetos',collection:'Natal',name:'Um Natal cheio de afeto',description:'Uma estampa natalina para presentear com o nome de quem você ama.',template:'natal',ink:'#56705b',phrase:'um Natal cheio de afeto',allowPhrase:true,allowElements:true},
+ {...blankTemplate,id:'jardim-nomes',collection:'Pequenos afetos',name:'Jardim de nomes',description:'Folhagens delicadas e um nome especial.',template:'botanico',ink:'#828d77',phrase:'feito de pequenos afetos',allowPhrase:true},
+];
+export const variantOf=(p:Product,id?:string)=>p.variants?.find(v=>v.id===id);
+export const selectedProduct=(p:Product,id?:string):Product=>{const v=variantOf(p,id);return v?{...p,name:p.name+' · '+v.name,image:v.image||p.image,color:v.color,price:v.price,stock:v.stock}:p;};
+export const lowestPrice=(p:Product)=>p.hasVariants&&p.variants?.length?Math.min(...p.variants.map(v=>v.price)):p.price;
 export type Settings = { name:string; whatsapp:string; originCep:string; productionDays:number; localPrefix:string; localFee:number; localName:string; pickupAddress:string; demo:boolean; instagram:string };
 export const defaults:Settings={name:'Hunay Personalizados',whatsapp:'',originCep:'',productionDays:7,localPrefix:'',localFee:0,localName:'Entrega na região',pickupAddress:'Combinar com a loja',demo:true,instagram:''};
-export const categories=['Todos','Canecas','Copos','Agendas','Canetas','Kits'];
+export const categories=['Todos','Canecas','Copos','Garrafas','Agendas','Canetas','Kits'];
 export const statuses:Record<string,string>={orcamento:'Novo orçamento',entrada:'Aguardando entrada',arte:'Criando arte',aprovacao:'Aguardando aprovação',producao:'Em produção',pronto:'Pronto para entrega',entregue:'Entregue',cancelado:'Cancelado'};
 export const seedProducts:Product[]=[
  {id:'caneca-rose',name:'Caneca com seu nome',category:'Canecas',price:4990,stock:18,image:'/images/mug.webp',description:'Cerâmica 325 ml com interior e alça rosé. Personalize com nome, frase ou uma foto especial.',badge:'Queridinho',color:'#d5a598',weight:.4,width:12,height:11,length:12,customizable:true,type:'mug'},
@@ -10,6 +21,8 @@ export const seedProducts:Product[]=[
  {id:'caneta-metal',name:'Caneta metal premium',category:'Canetas',price:1990,stock:40,image:'/images/pen.svg',description:'Caneta metálica com acabamento rosé. Personalização do nome para presentear com carinho.',badge:'Gravação a laser',color:'#c49b82',weight:.05,width:3,height:3,length:16,customizable:true,type:'pen'},
  {id:'kit-afeto',name:'Kit pequenos afetos',category:'Kits',price:12990,stock:6,image:'/images/hero.webp',description:'Uma combinação de presentes para encantar. Conte para a gente a ocasião e montamos com você.',badge:'Para presentear',color:'#9a9e8c',weight:1.2,width:28,height:18,length:30,customizable:false,type:'kit'},
  {id:'caneca-foto',name:'Caneca de boas memórias',category:'Canecas',price:4490,stock:24,image:'/images/mug.webp',description:'Transforme uma foto em um presente cheio de significado. Caneca em cerâmica 325 ml.',badge:'Com sua foto',color:'#d5a598',weight:.4,width:12,height:11,length:12,customizable:true,type:'mug'},
+ {id:'caneca-branca',name:'Caneca branca personalizada',category:'Canecas',price:4000,stock:20,image:'/images/mug.webp',description:'Escolha a base e conte sua ideia. O valor inclui a personalização; a Hunay prepara a arte após a confirmação da entrada e envia para aprovação. Foto ilustrativa.',badge:'A Hunay cria sua arte',color:'#ffffff',weight:.4,width:12,height:11,length:12,customizable:true,type:'mug'},
+ {id:'garrafa-600',name:'Garrafa térmica 600 ml',category:'Garrafas',price:9990,stock:15,image:'/images/tumbler.webp',description:'Escolha a cor da garrafa e personalize com um nome especial. Foto ilustrativa do catálogo.',badge:'Escolha sua cor',color:'#8b9585',weight:.5,width:10,height:26,length:10,customizable:true,type:'tumbler',hasVariants:true,variants:[{id:'verde',name:'Verde sálvia',color:'#8b9585',image:'/images/tumbler.webp',price:9990,stock:6},{id:'rose',name:'Rosé',color:'#d5a598',image:'/images/tumbler.webp',price:9990,stock:5},{id:'preto',name:'Preta',color:'#242823',image:'/images/tumbler.webp',price:10990,stock:4}]},
 ];
 export const money=(c:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((c||0)/100);
 export const blankProduct:Product={id:'',name:'',category:'Canecas',price:0,stock:0,image:'/images/mug.webp',description:'',badge:'Personalizável',color:'#d5a598',weight:.4,width:12,height:11,length:12,customizable:true,type:'mug'};
