@@ -122,3 +122,17 @@ No painel:
 4. **Pedidos:** confirme manualmente o recebimento da entrada. A reserva continua exigindo pelo menos 50% do total e desconta somente a cor pedida. A aprovação da arte continua pelo atendimento.
 
 A opção **A Hunay cria minha arte** permite pedir a personalização sem usar o editor. O cliente informa o nome, o tema ou uma referência; a loja prepara a arte depois de confirmar a entrada. Não há integração de pagamento nem IA nesta versão.
+
+## Atualização 1.2.0 — descontos
+
+Atualize os arquivos no mesmo repositório e faça **Redeploy**, mantendo o volume `/data` e as variáveis atuais. A migração adiciona os campos do desconto sem alterar os totais dos pedidos anteriores.
+
+Para a regra da caneca branca:
+
+1. Abra **Produtos e estoque**, edite a caneca e mantenha o preço normal de **R$ 40**.
+2. Em **Preço automático por quantidade**, clique em **Adicionar faixa de preço**. Preencha **quantidade mínima 11** e **preço por unidade R$ 35** para valer acima de 10 unidades. Se quiser que já valha com 10, use mínimo 10.
+3. Salve o produto. O carrinho soma as unidades deste mesmo produto, mesmo com artes ou cores diferentes, e ajusta o preço automaticamente. Essa configuração não é inserida automaticamente no catálogo existente.
+
+Para uma condição negociada após receber o orçamento, abra **Pedidos**, escolha o pedido e use **Desconto no conjunto de produtos**, em reais ou porcentagem. O desconto incide nos produtos, já com as faixas por quantidade, e mantém o frete separado. Confira recebimentos, entrada e saldo, informe um motivo se desejar e clique em **Salvar atualização**. Depois reabra o pedido e use **Enviar total salvo no WhatsApp**.
+
+O acompanhamento do cliente mostra o novo total. Alterar o cadastro do produto não muda o preço dos pedidos já registrados. Remover um desconto manual exige salvar o pedido com desconto zero. Os pagamentos continuam sendo confirmados pela loja após combinar pelo WhatsApp.

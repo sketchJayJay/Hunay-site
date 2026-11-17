@@ -1,5 +1,6 @@
+import {type QuantityPrice} from './pricing';
 export type ProductVariant = { id:string; name:string; color:string; image:string; price:number; stock:number };
-export type Product = { id:string; name:string; category:string; price:number; stock:number; image:string; description:string; badge:string; color:string; weight:number; width:number; height:number; length:number; customizable:boolean; type:string; active?:number; hasVariants?:boolean; variants?:ProductVariant[] };
+export type Product = { id:string; name:string; category:string; price:number; stock:number; image:string; description:string; badge:string; color:string; weight:number; width:number; height:number; length:number; customizable:boolean; type:string; active?:number; hasVariants?:boolean; variants?:ProductVariant[]; quantityPrices?:QuantityPrice[] };
 export type ArtTemplate = { id:string; collection:string; name:string; description:string; productIds:string[]; template:string; font:string; ink:string; phrase:string; image:string; nameX:number; nameY:number; allowPhrase:boolean; allowElements:boolean };
 export const decorations=[['minimal','Essencial'],['botanico','Botânico'],['coracoes','Corações'],['natal','Natal']];
 export const blankTemplate:ArtTemplate={id:'',collection:'',name:'',description:'',productIds:[],template:'minimal',font:'Georgia',ink:'#ad7564',phrase:'',image:'',nameX:50,nameY:50,allowPhrase:false,allowElements:false};

@@ -27,9 +27,13 @@ export function updateOrderInventory(orderId,b){return transaction(()=>{
  const status=str(b.status,30);if(!statuses[status])throw new Error('Etapa inválida.');
  const delivery=JSON.parse(row.shipping);
  if(b.freight!==undefined&&delivery.id!=='pickup'&&status!=='cancelado'){delivery.price=int(b.freight,0,9999999);if(delivery.id==='consult')delivery.name='Envio pelos Correios';}
- const total=delivery.subtotal+(delivery.price||0),paid=int(b.paid,0,total);
+ if(status!=='cancelado'&&b.discount!==undefined&&!Number.isSafeInteger(b.discount))throw new Error('Informe um desconto válido em centavos inteiros.');
+ const discount=status==='cancelado'||b.discount===undefined?row.discount:int(b.discount,0,delivery.subtotal);
+ const discountReason=status==='cancelado'||b.discountReason===undefined?row.discount_reason:str(b.discountReason,300);
+ const total=delivery.subtotal-discount+(delivery.price||0),paid=int(b.paid,0);
+ if(paid>total)throw new Error('O total com desconto não pode ficar abaixo do valor recebido informado. Confira o desconto e os recebimentos.');
  if(['arte','aprovacao','producao','pronto','entregue'].includes(status)&&paid<Math.ceil(total/2))throw new Error('Confirme pelo menos 50% de entrada para iniciar a arte e a produção.');
- const reserving=paid>=Math.ceil(total/2)&&status!=='cancelado';
+ const reserving=status!=='cancelado'&&(total>0?paid>=Math.ceil(total/2):['arte','aprovacao','producao','pronto','entregue'].includes(status));
  if(!!row.reserved!==reserving){
   const items=JSON.parse(row.items),touched=new Set();
   for(const i of items){
@@ -50,7 +54,8 @@ export function updateOrderInventory(orderId,b){return transaction(()=>{
   for(const id of touched)syncStock(id);
  }
  const now=new Date().toISOString();
- sqlite.prepare('UPDATE orders SET status=?,paid=?,reserved=?,total=?,shipping=?,updated_at=? WHERE id=?').run(status,paid,reserving?1:0,total,JSON.stringify(delivery),now,row.id);
- sqlite.prepare('INSERT INTO events(id,order_id,message,created_at) VALUES(?,?,?,?)').run(crypto.randomUUID(),row.id,`${statuses[status]} · recebido R$ ${(paid/100).toFixed(2).replace('.',',')}`,now);
+ sqlite.prepare('UPDATE orders SET status=?,paid=?,reserved=?,total=?,shipping=?,discount=?,discount_reason=?,updated_at=? WHERE id=?').run(status,paid,reserving?1:0,total,JSON.stringify(delivery),discount,discountReason,now,row.id);
+ const discountHistory=discount!==row.discount||discountReason!==row.discount_reason?` · desconto R$ ${(discount/100).toFixed(2).replace('.',',')}${discountReason?' ('+discountReason+')':''}`:'';
+ sqlite.prepare('INSERT INTO events(id,order_id,message,created_at) VALUES(?,?,?,?)').run(crypto.randomUUID(),row.id,`${statuses[status]} · recebido R$ ${(paid/100).toFixed(2).replace('.',',')}${discountHistory}`,now);
  return {ok:true};
 });}

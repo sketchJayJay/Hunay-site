@@ -30,7 +30,7 @@ Os exemplos são semeados uma única vez. Atualizações preservam o banco e arq
 
 ## Validação deste pacote
 
-Verificados: TypeScript, build de produção e 17 testes, incluindo login, arquivos privados, preços por cor, confirmação manual de entrada, concorrência de estoque, limites das estampas, reinício, backup, troca de senha e atualização de um banco da versão anterior. A suíte de integração executa o runtime somente com `dist`, `server` e `package.json`, sem depender de `node_modules`.
+Verificados: TypeScript, build de produção e 26 testes, incluindo login, arquivos privados, preços por quantidade e por cor, descontos no pedido, confirmação manual de entrada, concorrência de estoque, limites das estampas, reinício, backup, troca de senha e atualização de um banco da versão anterior. A suíte de integração executa o runtime somente com `dist`, `server` e `package.json`, sem depender de `node_modules`.
 
 A imagem Docker não foi construída neste ambiente, que não possui Docker. O teste final de domínio, HTTPS, volume e container deve ser feito após o deploy no Coolify.
 
@@ -53,4 +53,15 @@ Referências de instalação: [Dockerfile no Coolify](https://coolify.io/docs/ap
 - A exportação JSON inclui as cores e as estampas. As imagens entram no backup completo.
 - A migração adiciona as tabelas novas sem substituir produtos, pedidos, estoque ou arquivos existentes. Os novos produtos de exemplo aparecem somente em instalações novas; a atualização de uma loja real não adiciona produtos demonstrativos. As coleções de exemplo são adicionadas na primeira atualização somente quando a loja ainda está com demonstração ativada.
 
-A prévia visual desta atualização não foi executada: o serviço de prévia deste ambiente já estava ocupado. Após o deploy, confira os fluxos no celular e no computador com os dados reais da loja.
+A prévia visual da versão 1.1.0 não foi executada porque o serviço de prévia estava ocupado.
+
+## Atualização 1.2.0 — preços por quantidade e desconto no pedido
+
+- Em **Produtos**, abra **Preço automático por quantidade** e cadastre quantidade mínima e preço por unidade. Exemplo: caneca a R$ 40 e faixa a R$ 35 com mínimo 11 (acima de 10). Use mínimo 10 se valer já com 10 unidades. São permitidas até 10 faixas com preços decrescentes.
+- A regra soma as unidades do mesmo produto, inclusive cores e artes diferentes. Produtos diferentes não entram na mesma faixa. Nas variações, o preço da faixa vale para todas as cores. Os preços são conferidos pelo servidor e também são usados no valor declarado da cotação do frete.
+- O cliente pode digitar a quantidade no carrinho. O preço se ajusta ao subir ou descer de faixa e aparece no resumo do WhatsApp e no pedido salvo.
+- Em **Pedidos**, o painel permite desconto adicional em reais ou porcentagem sobre os produtos. O frete fica separado. O total, a entrada mínima de 50% e o saldo são recalculados. O sistema registra o desconto em centavos e o motivo no histórico. Salve antes de usar **Enviar total salvo no WhatsApp**.
+- Alterar faixas de um produto não muda os pedidos já fechados. O desconto manual funciona também nos pedidos existentes. O acompanhamento mostra o desconto e o total atualizado; o pagamento continua combinado pelo WhatsApp.
+- A nova migração acrescenta desconto e motivo com valor inicial zero, mantendo valores e estoque anteriores. Nenhum cadastro real é alterado automaticamente; configure as faixas nos produtos desejados após atualizar.
+
+Conferido no navegador da prévia: caneca de R$ 40, 10 unidades por R$ 400 e 11 unidades por R$ 385 com faixa mínima 11. A interface administrativa e o layout móvel desta atualização não passaram por conferência visual; os cálculos e a persistência foram verificados pela suíte de testes.

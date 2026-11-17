@@ -8,7 +8,8 @@ import {GET as api} from './api.mjs';
 import {requestContext,sqlite} from './runtime.mjs';
 import {authRoute,isAuthenticated} from './auth.mjs';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..','dist');
-const port=Number(process.env.PORT||3000);
+const portFlag=process.argv.indexOf('--port');
+const port=Number((portFlag>=0?process.argv[portFlag+1]:undefined)||process.env.PORT||3000);
 const MAX_BODY=9000000;
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon','.json':'application/json; charset=utf-8','.woff2':'font/woff2'};
 function originFor(req){if(process.env.APP_URL)return new URL(process.env.APP_URL).origin;const proto=String(req.headers['x-forwarded-proto']||'http').split(',')[0].trim()==='https'?'https':'http';return proto+'://'+req.headers.host;}

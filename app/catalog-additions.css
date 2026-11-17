@@ -5,6 +5,29 @@
 .template-preview{aspect-ratio:16/7;background:#f6f0e8;display:grid;place-items:center;overflow:hidden}
 .template-preview>img{width:100%;height:100%;object-fit:contain}
 .template-preview>span{font-size:12px;color:var(--muted)}
+.quantity-prices{margin:15px 0;padding:13px;background:#f0f3ed;border:1px solid #e0e6da;border-radius:8px;color:var(--sage-dark)}
+.quantity-prices>b{display:block;font-size:11px;margin-bottom:9px}
+.quantity-prices>div{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;line-height:1.5;margin:6px 0}
+.quantity-prices small{display:block;font-size:10px;color:var(--muted);line-height:1.6;margin-top:9px}
+.product-card .quantity-prices{padding:10px;margin:10px 0 16px}
+.product-card .quantity-prices>div{font-size:10px;gap:5px}
+.quantity-price-applied{color:var(--sage-dark)!important;font-size:10px!important}
+.cart-item .qty>input{width:58px;min-height:30px;height:30px;padding:3px 2px;text-align:center;border:0;background:transparent;border-radius:0;font-size:12px;appearance:textfield;-moz-appearance:textfield}
+.cart-item .qty>input::-webkit-inner-spin-button,.cart-item .qty>input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.quantity-price-fields{padding:20px 0;border-top:1px solid var(--line);margin-top:20px}
+.quantity-price-fields>h4{font-size:14px;margin:0 0 12px}
+.quantity-price-row{display:grid;grid-template-columns:1fr 1fr 30px;gap:12px;align-items:center;margin:17px 0}
+.quantity-price-row>.field{margin-bottom:0}
+.quantity-price-row>.field>label{font-size:11px}
+.quantity-price-row>.icon-button{margin-top:20px}
+.order-discount{padding:18px 0;margin:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.order-discount>h4{font-size:13px;margin-bottom:12px}
+.order-discount .form-grid{gap:10px}
+.order-discount .field>label{font-size:11px}
+.order-discount select{padding-left:8px;padding-right:8px;font-size:11px}
+.discount-preview{color:var(--sage-dark);font-size:12px}
+.order-price-breakdown{margin:0 0 20px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.order-price-breakdown>div{display:flex;justify-content:space-between;gap:14px;padding:8px 0;font-size:12px}
 .collection-card>div:not(.template-preview){padding:23px}
 .collection-card h3{font-size:25px;margin:9px 0 12px;line-height:1.15}
 .collection-card p{font-size:12px;color:var(--muted);min-height:42px}

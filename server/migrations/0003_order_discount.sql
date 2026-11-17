@@ -1,0 +1,2 @@
+ALTER TABLE orders ADD COLUMN discount INTEGER NOT NULL DEFAULT 0 CHECK(discount>=0);
+ALTER TABLE orders ADD COLUMN discount_reason TEXT NOT NULL DEFAULT '';

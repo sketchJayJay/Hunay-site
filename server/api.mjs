@@ -2,6 +2,7 @@ import { env } from './runtime.mjs';
 import { admin, bootstrap, database, fail, getProducts, getTemplates, getSettings, int, shapeOrder, str } from './store.mjs';
 import { categories, decorations } from './catalog.mjs';
 import {writeProduct,updateOrderInventory} from './inventory.mjs';
+import {priceForQuantity,quantitiesByProduct,validateQuantityPrices} from './pricing.mjs';
 export const dynamic='force-dynamic';
 const json=(x        ,status=200)=>Response.json(x,{status,headers:{'Cache-Control':'no-store'}});
 const safeImage=(v       )=>v.startsWith('/images/')||/^\/api\/product-image\/[a-zA-Z0-9.-]+$/.test(v);
@@ -12,8 +13,8 @@ async function shipping(b    ){
  if(cep.length===8 && cfg.localPrefix && cep.startsWith(cfg.localPrefix))options.push({id:'local',name:cfg.localName,price:cfg.localFee,days:0,detail:'Prazo a combinar com a loja'});
  let connected=Boolean(env.MELHOR_ENVIO_TOKEN && cfg.originCep.length===8);
  if(connected && cep.length===8){
-  const catalog=await getProducts();
-  const products=(b.items||[]).map((i    )=>{const p=catalog.find(p=>p.id===i.productId);if(!p)throw new Error('Produto indisponível.');const v=selectedVariant(p,i.variantId);return {id:p.id+(v?'-'+v.id:''),width:p.width,height:p.height,length:p.length,weight:p.weight,insurance_value:(v?.price??p.price)/100,quantity:int(i.qty,1,500)};});
+  const catalog=await getProducts(),quotedItems=(b.items||[]).map(i=>({...i,qty:int(i.qty,1,500)})),quantities=quantitiesByProduct(quotedItems);
+  const products=quotedItems.map(i=>{const p=catalog.find(p=>p.id===i.productId);if(!p)throw new Error('Produto indisponível.');const v=selectedVariant(p,i.variantId);return {id:p.id+(v?'-'+v.id:''),width:p.width,height:p.height,length:p.length,weight:p.weight,insurance_value:priceForQuantity(p,quantities.get(p.id),v?.price??p.price)/100,quantity:i.qty};});
   if(!products.length)throw new Error('Adicione produtos para calcular o frete.');
   const r=await fetch('https://melhorenvio.com.br/api/v2/me/shipment/calculate',{method:'POST',headers:{Authorization:`Bearer ${env.MELHOR_ENVIO_TOKEN}`,'Content-Type':'application/json',Accept:'application/json','User-Agent':'Hunay Personalizados'},body:JSON.stringify({from:{postal_code:cfg.originCep},to:{postal_code:cep},products,services:'1,2'})});
   if(!r.ok)throw new Error('Não foi possível consultar o frete agora. Escolha frete a combinar ou tente novamente.');
@@ -41,6 +42,7 @@ async function route(req        ,parts         ){
   const prior=await database().prepare('SELECT id,code,access_token,total FROM orders WHERE id=?').bind(id).first();if(prior)return json(prior);
   const name=str(b.name,100),phone=str(b.phone,20).replace(/\D/g,'');if(name.length<3||phone.length<10||phone.length>13)return fail('Informe seu nome e um WhatsApp válido.');
   if(!Array.isArray(b.items)||b.items.length<1||b.items.length>20)return fail('Adicione de 1 a 20 itens ao orçamento.');
+  const quantities=quantitiesByProduct(b.items.map(i=>({productId:i.productId,qty:int(i.qty,1,500)})));
   const catalog=await getProducts(),templates=await getTemplates();let subtotal=0;const used=new Map();const items=[];
   for(let n=0;n<b.items.length;n++){
    const i=b.items[n];const p=catalog.find(p=>p.id===i.productId);if(!p)return fail('Um produto não está mais disponível.');
@@ -58,8 +60,8 @@ async function route(req        ,parts         ){
    const request=mode==='shop'?{name:str(i.request?.name,100),brief:str(i.request?.brief,1500)}:null;
    if(i.mode==='shop'&&!request.name&&!request.brief&&!i.request?.reference)return fail('Conte a ideia da arte que a Hunay vai preparar.');
    const design=mode!=='shop'&&source?{text:str(source.text,50),phrase:str(source.phrase,100),font:str(source.font,40),color:str(source.ink,20),template:str(source.template,20),background:stamp?.image||'',nameX:stamp?.nameX??50,nameY:stamp?.nameY??50,photoX:Number(source.x)||0,photoY:Number(source.y)||0,photoScale:Number(source.scale)||1}:null;
-   const price=v?.price??p.price;subtotal+=price*qty;
-   items.push({productId:p.id,name:p.name,image:v?.image||p.image,price,qty,variantId:v?.id||'',variantName:v?.name||'',mode,templateId:stamp?.id||'',collectionName:stamp?.collection||'',templateName:stamp?.name||'',request,design,art:{}});
+   const regularPrice=v?.price??p.price,price=priceForQuantity(p,quantities.get(p.id),regularPrice);subtotal+=price*qty;
+   items.push({productId:p.id,name:p.name,image:v?.image||p.image,price,regularPrice,qty,variantId:v?.id||'',variantName:v?.name||'',mode,templateId:stamp?.id||'',collectionName:stamp?.collection||'',templateName:stamp?.name||'',request,design,art:{}});
   }
   const quote=await shipping({cep:b.cep,items:b.items});const selected=quote.options.find(x=>x.id===b.shippingId);if(!selected)return fail('Selecione uma opção de entrega válida.');
   if(selected.id!=='pickup' && str(b.cep).replace(/\D/g,'').length!==8)return fail('Informe o CEP para entrega.');
@@ -98,6 +100,7 @@ async function route(req        ,parts         ){
    }
    const stock=hasVariants?variants.reduce((s,v)=>s+v.stock,0):int(b.stock,0,99999);
    const p={id,name,price:hasVariants?Math.min(...variants.map(v=>v.price)):price,stock,image,category:b.category,description:str(b.description,1500),badge:str(b.badge,40),color:/^#[0-9a-f]{6}$/i.test(b.color)?b.color:'#d5a598',weight:Number(b.weight),height:Number(b.height),width:Number(b.width),length:Number(b.length),customizable:!!b.customizable,type:['mug','tumbler','notebook','pen','kit'].includes(b.type)?b.type:'mug',hasVariants,variants};
+   p.quantityPrices=validateQuantityPrices(b.quantityPrices,p.price);
    if([p.weight,p.height,p.width,p.length].some(n=>!Number.isFinite(n)||n<=0||n>1000))return fail('Preencha peso e medidas positivos.');
    writeProduct(p);return json({product:p});
   }
