@@ -440,3 +440,6 @@ a.brand .brand-mark img{position:absolute;width:90px;height:auto;max-width:none;
 .finance-rules>p{padding:0 20px 19px;margin:0;font-size:12px;line-height:1.85;color:#536449}
 .order-value>small{white-space:normal;line-height:1.6;max-width:160px}
 @media(max-width:650px){.finance-rules>summary{padding:15px;font-size:12px}.finance-rules>summary>span{margin-left:26px;flex-basis:100%}.finance-rules>p{padding:0 15px 16px}.order-value>small{max-width:115px}}
+
+.admin-update-status{font-size:10px;line-height:1.5;color:#65765d;font-variant-numeric:tabular-nums}
+@media(max-width:650px){.admin-update-status{font-size:9px;margin-right:auto;max-width:126px}.admin-topbar>div{gap:9px}}

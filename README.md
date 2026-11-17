@@ -30,7 +30,7 @@ Os exemplos são semeados uma única vez. Atualizações preservam o banco e arq
 
 ## Validação deste pacote
 
-Verificados: TypeScript, build de produção e 39 testes, incluindo login, arquivos privados, preços por quantidade e por cor, descontos, vendas manuais a prazo, estoque, relatórios, reinício, backup, troca de senha e atualização de um banco da versão anterior. A suíte de integração executa o runtime somente com `dist`, `server` e `package.json`, sem depender de `node_modules`.
+Verificados: TypeScript, build de produção e 45 testes, incluindo login, arquivos privados, preços por quantidade e por cor, descontos, vendas manuais a prazo, estoque, relatórios, reinício, backup, troca de senha e atualização de um banco da versão anterior. A suíte de integração executa o runtime somente com `dist`, `server` e `package.json`, sem depender de `node_modules`.
 
 A imagem Docker não foi construída neste ambiente, que não possui Docker. O teste final de domínio, HTTPS, volume e container deve ser feito após o deploy no Coolify.
 
@@ -111,3 +111,15 @@ O módulo compartilhado `server/order-finance.mjs` já estava no pacote e no rep
 Foi acrescentado um teste que recria uma pasta isolada usando somente os arquivos copiados antes da compilação na etapa de build, reaproveitando as dependências instaladas do mesmo lockfile. O teste reproduziu o erro na versão anterior e compilou corretamente com a inclusão da pasta. TypeScript, build de produção e 39 testes passaram. A execução da imagem Docker em si não foi testada neste ambiente, que não possui Docker nem Podman.
 
 Esta correção não muda as migrações ou a localização dos dados. As regras financeiras da versão 1.4.1 permanecem no pacote. Atualize os arquivos no repositório e faça o deploy mantendo o mesmo volume `/data`.
+
+## Atualização 1.4.3 — atualização automática do painel
+
+Esta versão mantém as regras financeiras da 1.4.2. Não muda quais pedidos compõem o saldo e não altera vendas, recebimentos, estoque ou migrações.
+
+- O painel passa a consultar dados atuais a cada 10 segundos enquanto está visível e ao retornar para a janela ou aba. Também consulta ao abrir Visão geral ou Pedidos e vendas.
+- As consultas automáticas ficam pausadas durante os formulários de edição, nova venda, detalhes do pedido, configurações e coleções. Salvar continua forçando uma consulta nova.
+- Consultas simultâneas são agrupadas. Se há uma consulta antiga em andamento quando uma alteração é salva, o painel aguarda uma nova leitura e descarta a resposta anterior.
+- O botão de atualizar mostra atividade e há um horário da última leitura concluída. Durante o carregamento inicial, os indicadores mostram um traço, em vez de apresentar zero como se já fosse o total definitivo.
+- As consultas pela função da interface usam `cache: no-store`. O servidor já enviava `Cache-Control: no-store`; a mudança também torna explícita a leitura sem cache no navegador.
+
+Validação: TypeScript, build de produção, build isolado com os arquivos da etapa Docker e **45 testes aprovados**. Os testes cobrem atualização periódica e ao retornar, pausa de consultas, leitura simultânea, resposta antiga após salvar, erro de conexão e saída do painel. Os arquivos do servidor, cálculo financeiro, migrações e Dockerfile foram comparados com a versão 1.4.2 e permanecem iguais. Não foi diagnosticada a latência da VPS nem executado o fluxo administrativo no navegador nesta versão.

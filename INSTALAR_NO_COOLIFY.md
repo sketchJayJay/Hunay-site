@@ -178,3 +178,7 @@ RUN npm run build
 ```
 
 Salve no mesmo repositório e refaça o deploy. Mantenha o volume existente e o destino `/data`.
+
+## Atualização 1.4.3 — painel atualizado automaticamente
+
+Atualize os arquivos no repositório e faça o deploy mantendo o mesmo volume `/data`. Ao abrir o painel, aguarde a indicação de atualização concluída. O botão de atualizar permite consultar imediatamente; com o painel visível, a consulta automática ocorre a cada 10 segundos e ao retornar para a aba. As regras do saldo a receber continuam as da versão 1.4.2.
