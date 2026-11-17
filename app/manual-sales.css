@@ -1,0 +1,45 @@
+.admin-heading-actions{display:flex;flex-wrap:wrap;gap:10px}
+.order-view-tabs{justify-content:flex-start;max-width:430px;margin-bottom:25px}
+.manual-sale-form{padding:26px 30px 0}
+.manual-sale-form>section{padding:22px 0;border-bottom:1px solid var(--line)}
+.manual-sale-form h3{font-size:23px;margin:0 0 22px}
+.manual-sale-form .field{margin-bottom:18px}
+.manual-sale-form .notice{font-size:12px;line-height:1.8}
+.sale-line{border:1px solid var(--line);border-radius:10px;background:#fcfbf8;padding:20px;margin:16px 0}
+.sale-line-head{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:16px;font-size:12px}
+.sale-line>.muted{display:block;font-size:11px;margin:12px 0 20px;line-height:1.7}
+.sale-line-total{display:flex;justify-content:space-between;gap:18px;margin-top:18px;font-size:12px}
+.sale-line-total>strong{font-size:17px;color:var(--sage-dark)}
+.sale-add-buttons{display:flex;gap:12px;flex-wrap:wrap;margin:20px 0}
+.sale-add-buttons .button{font-size:12px}
+.sale-stock-choice{padding:18px;border:1px solid #d9e2d1;border-radius:9px;background:#f1f5ed;margin:22px 0 0}
+.sale-stock-choice .checkline{margin-bottom:10px;font-size:12px}
+.sale-stock-choice>p{margin:0}
+.sale-footer{position:sticky;bottom:0;background:#fffcf7f5;backdrop-filter:blur(10px);border-top:1px solid var(--line);margin:0 -30px;padding:20px 30px;display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
+.sale-footer>div>span{display:block;font-size:11px;color:var(--muted)}
+.sale-footer>div>strong{display:block;font-size:28px;font-family:var(--serif);font-weight:400;margin:6px 0}
+.sale-footer>div>small{display:block;font-size:11px;color:var(--muted)}
+.sale-footer>.error{order:3;width:100%;margin:0}
+.sales-filters{display:grid;grid-template-columns:1fr 1fr 1fr 1.5fr auto;gap:14px;align-items:end;margin:10px 0 26px}
+.sales-filters .field{min-width:0;margin:0}
+.sales-filters label{font-size:11px}
+.sales-filters input,.sales-filters select{min-width:0;font-size:12px;padding:11px}
+.sales-filters .button{font-size:12px}
+.sale-stats .stat-card>strong{font-size:28px;overflow-wrap:anywhere}
+.sale-report-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto 18px;gap:18px;align-items:center;padding:22px;width:100%;border-bottom:1px solid var(--line);text-align:left}
+.sale-report-row:hover{background:#faf9f4}
+.sale-report-row>div{min-width:0}
+.sale-report-row>div>b{font-size:13px;display:block;margin-bottom:8px}
+.sale-report-row small{display:block;font-size:10px;color:var(--muted);line-height:1.65;margin-top:4px;overflow-wrap:anywhere}
+.sale-report-row>.order-value{min-width:105px}
+.sales-pagination{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;gap:14px}
+.sales-pagination>span{font-size:11px;color:var(--muted)}
+.sales-pagination .button{font-size:11px;min-height:38px;padding:10px 14px}
+.manual-sale-metadata{margin:20px 0;padding:17px;background:#f0f4eb;border-radius:9px}
+.manual-sale-metadata>b{font-size:12px;color:var(--sage-dark)}
+.manual-sale-metadata>p{font-size:11px;line-height:1.6;margin:8px 0 0}
+.manual-sale-stock{margin:18px 0;padding:14px;border:1px solid var(--line);border-radius:8px}
+.manual-sale-stock .notice{margin:0}
+.manual-sale-stock>small{display:block;font-size:10px;line-height:1.7}
+@media(max-width:1100px){.sales-filters{grid-template-columns:1fr 1fr}.sales-filters .button{width:130px}.sale-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.manual-sale-form{padding:20px 19px 0}.manual-sale-form h3{font-size:22px}.sale-line{padding:15px}.sale-footer{margin:0 -19px;padding:16px 19px}.sale-footer>div>strong{font-size:25px}.sale-footer>.button{font-size:12px}.sale-report-row{grid-template-columns:minmax(0,1fr) 105px;gap:12px;padding:18px}.sale-report-row>.status-pill{grid-row:2;justify-self:start}.sale-report-row>.order-value{grid-column:2;grid-row:1}.sale-report-row>svg{display:none}.sales-pagination{padding:15px;gap:8px}.sales-pagination .button{font-size:10px;padding:9px}.sales-filters{gap:12px}.sales-filters input{padding:10px 7px}.sale-stats .stat-card>strong{font-size:24px}.sales-report .panel-head{display:block}.sales-report .panel-head>span{display:block;margin-top:10px}.admin-heading-actions .button{font-size:11px}.order-view-tabs{width:100%;max-width:100%}}

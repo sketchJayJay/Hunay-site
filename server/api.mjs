@@ -3,6 +3,7 @@ import { admin, bootstrap, database, fail, getProducts, getTemplates, getSetting
 import { categories, decorations } from './catalog.mjs';
 import {writeProduct,updateOrderInventory} from './inventory.mjs';
 import {priceForQuantity,quantitiesByProduct,validateQuantityPrices} from './pricing.mjs';
+import {createManualSale,salesReport,salesTotals,todayBrazil} from './sales.mjs';
 export const dynamic='force-dynamic';
 const json=(x        ,status=200)=>Response.json(x,{status,headers:{'Cache-Control':'no-store'}});
 const safeImage=(v       )=>v.startsWith('/images/')||/^\/api\/product-image\/[a-zA-Z0-9.-]+$/.test(v);
@@ -70,7 +71,7 @@ async function route(req        ,parts         ){
   for(let n=0;n<items.length;n++){const d=b.items[n].design;if(items[n].mode!=='shop'&&d){for(const kind of ['color','bw','original'])if(d[kind])items[n].art[kind]=await saveArt(id,`${n}-${kind}`,d[kind]);}if(items[n].mode==='shop'&&b.items[n].request?.reference)items[n].art.original=await saveArt(id,`${n}-reference`,b.items[n].request.reference);}
   const code='HN-'+new Date().toISOString().slice(2,10).replace(/-/g,'')+'-'+id.slice(0,5).toUpperCase(),now=new Date().toISOString();
   const delivery={...selected,cep:quote.cep,address,subtotal,productionDays:quote.productionDays};
-  await database().batch([database().prepare('INSERT INTO orders(id,code,access_token,name,phone,status,total,paid,reserved,items,shipping,notes,desired_date,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,code,token,name,phone,'orcamento',total,0,0,JSON.stringify(items),JSON.stringify(delivery),str(b.notes,1500),str(b.desiredDate,10),now,now),database().prepare('INSERT INTO events(id,order_id,message,created_at) VALUES(?,?,?,?)').bind(crypto.randomUUID(),id,'Orçamento recebido pelo site.',now)]);
+  await database().batch([database().prepare('INSERT INTO orders(id,code,access_token,name,phone,status,total,paid,reserved,items,shipping,notes,desired_date,created_at,updated_at,sale_date) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,code,token,name,phone,'orcamento',total,0,0,JSON.stringify(items),JSON.stringify(delivery),str(b.notes,1500),str(b.desiredDate,10),now,now,todayBrazil()),database().prepare('INSERT INTO events(id,order_id,message,created_at) VALUES(?,?,?,?)').bind(crypto.randomUUID(),id,'Orçamento recebido pelo site.',now)]);
   return json({id,code,access_token:token,total},201);
  }
  if(parts[0]==='orders'&&parts[1]&&method==='GET'){
@@ -87,7 +88,13 @@ async function route(req        ,parts         ){
  }
  if(path.startsWith('admin')||path==='product-image'){
   if(!await admin())return fail('Faça login na área da loja.',403);await bootstrap();const db=database();
-  if(path==='admin'&&method==='GET'){const [orders,events]=await Promise.all([db.prepare('SELECT * FROM orders ORDER BY created_at DESC LIMIT 500').all     (),db.prepare('SELECT * FROM events ORDER BY created_at DESC LIMIT 500').all     ()]);return json({orders:orders.results.map(shapeOrder),events:events.results});}
+  if(path==='admin'&&method==='GET'){const [orders,events]=await Promise.all([db.prepare('SELECT * FROM orders ORDER BY created_at DESC LIMIT 500').all     (),db.prepare('SELECT * FROM events ORDER BY created_at DESC LIMIT 500').all     ()]);return json({orders:orders.results.map(shapeOrder),events:events.results,totals:salesTotals()});}
+  if(parts[1]==='orders'&&parts[2]&&method==='GET'){
+   const row=await db.prepare('SELECT * FROM orders WHERE id=?').bind(parts[2]).first();if(!row)return fail('Pedido não encontrado.',404);
+   const events=await db.prepare('SELECT * FROM events WHERE order_id=? ORDER BY created_at DESC LIMIT 200').bind(row.id).all();return json({order:shapeOrder(row),events:events.results});
+  }
+  if(path==='admin/sales'&&method==='POST'){const sale=createManualSale(await req.json());return json(sale.order,sale.created?201:200);}
+  if(path==='admin/sales'&&method==='GET')return json(salesReport(url.searchParams));
   if(path==='product-image'&&method==='POST'){
    const data=await req.formData();const f=data.get('file');if(!(f instanceof File)||!['image/png','image/jpeg','image/webp'].includes(f.type)||f.size>2500000)return fail('Envie PNG, JPG ou WebP de até 2,5 MB.');const key=crypto.randomUUID()+'.'+(f.type==='image/jpeg'?'jpg':f.type.split('/')[1]);await env.BUCKET?.put('products/'+key,await f.arrayBuffer(),{httpMetadata:{contentType:f.type}});return json({url:'/api/product-image/'+key});
   }

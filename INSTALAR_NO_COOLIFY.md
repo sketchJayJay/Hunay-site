@@ -136,3 +136,19 @@ Para a regra da caneca branca:
 Para uma condição negociada após receber o orçamento, abra **Pedidos**, escolha o pedido e use **Desconto no conjunto de produtos**, em reais ou porcentagem. O desconto incide nos produtos, já com as faixas por quantidade, e mantém o frete separado. Confira recebimentos, entrada e saldo, informe um motivo se desejar e clique em **Salvar atualização**. Depois reabra o pedido e use **Enviar total salvo no WhatsApp**.
 
 O acompanhamento do cliente mostra o novo total. Alterar o cadastro do produto não muda o preço dos pedidos já registrados. Remover um desconto manual exige salvar o pedido com desconto zero. Os pagamentos continuam sendo confirmados pela loja após combinar pelo WhatsApp.
+
+## Atualização 1.3.0 — registrar vendas fora do site
+
+Atualize os arquivos no mesmo repositório e faça **Redeploy**, mantendo o mesmo volume `/data` e as variáveis existentes. A migração preserva as vendas e os pagamentos anteriores.
+
+No painel, clique em **Nova venda**:
+
+1. Informe o nome do cliente ou da empresa, como uma prefeitura, e a data da venda. WhatsApp, CPF/CNPJ e referência de contrato ou empenho são opcionais.
+2. Selecione os produtos e as cores e informe as quantidades. O sistema sugere o preço do catálogo com as faixas de quantidade. Para um valor negociado, desmarque **Usar preço do catálogo** e preencha o preço por unidade. Para serviços ou produtos fora do catálogo, use **Adicionar avulso**.
+3. Escolha a etapa, inclusive **Entregue** para vendas já concluídas, e preencha entrega, descontos, valor recebido, forma de pagamento e vencimento, quando houver. Vendas lançadas pela loja podem ser registradas a prazo, sem entrada.
+4. Confira **Baixar o estoque dos produtos desta venda**. Desmarque para vendas antigas cujo estoque já foi baixado, ou para registrar sem movimentar agora. Itens avulsos nunca movimentam estoque.
+5. Clique em **Salvar venda**. O registro aparece junto dos pedidos e pode receber pagamentos e atualizações depois.
+
+Em **Pedidos e vendas → Vendas e totais**, consulte por período, origem e cliente/referência. Ali aparecem valor vendido, valores recebidos e saldo a receber, com totais completos do período. Vendas canceladas e orçamentos ainda não confirmados ficam fora dos totais.
+
+A baixa automática das vendas manuais é feita uma única vez. Se faltar estoque, a venda e as baixas parciais são desfeitas na mesma transação; reponha o estoque ou registre sem movimentação. Os pedidos do site continuam exigindo pelo menos 50% de entrada para liberar a arte e a produção.

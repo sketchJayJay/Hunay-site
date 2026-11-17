@@ -30,7 +30,7 @@ Os exemplos são semeados uma única vez. Atualizações preservam o banco e arq
 
 ## Validação deste pacote
 
-Verificados: TypeScript, build de produção e 26 testes, incluindo login, arquivos privados, preços por quantidade e por cor, descontos no pedido, confirmação manual de entrada, concorrência de estoque, limites das estampas, reinício, backup, troca de senha e atualização de um banco da versão anterior. A suíte de integração executa o runtime somente com `dist`, `server` e `package.json`, sem depender de `node_modules`.
+Verificados: TypeScript, build de produção e 34 testes, incluindo login, arquivos privados, preços por quantidade e por cor, descontos, vendas manuais a prazo, estoque, relatórios, reinício, backup, troca de senha e atualização de um banco da versão anterior. A suíte de integração executa o runtime somente com `dist`, `server` e `package.json`, sem depender de `node_modules`.
 
 A imagem Docker não foi construída neste ambiente, que não possui Docker. O teste final de domínio, HTTPS, volume e container deve ser feito após o deploy no Coolify.
 
@@ -65,3 +65,16 @@ A prévia visual da versão 1.1.0 não foi executada porque o serviço de prévi
 - A nova migração acrescenta desconto e motivo com valor inicial zero, mantendo valores e estoque anteriores. Nenhum cadastro real é alterado automaticamente; configure as faixas nos produtos desejados após atualizar.
 
 Conferido no navegador da prévia: caneca de R$ 40, 10 unidades por R$ 400 e 11 unidades por R$ 385 com faixa mínima 11. A interface administrativa e o layout móvel desta atualização não passaram por conferência visual; os cálculos e a persistência foram verificados pela suíte de testes.
+
+## Atualização 1.3.0 — vendas lançadas pela loja
+
+O botão **Nova venda** permite registrar vendas feitas presencialmente, pelo WhatsApp ou para empresas e prefeituras. O formulário recebe cliente, CPF/CNPJ e WhatsApp opcionais, data da venda, referência de contrato/empenho, produtos do catálogo ou itens avulsos, quantidades, preços combinados, descontos, frete, etapa, pagamentos e vencimento.
+
+- Nas linhas do catálogo, o preço é sugerido pelas faixas de quantidade. Desmarque **Usar preço do catálogo** para informar um preço negociado. Itens avulsos recebem descrição e valor próprios e não movimentam estoque.
+- A loja escolhe se quer baixar o estoque ao registrar a venda. A baixa é feita uma única vez, em transação, respeitando as cores. Para uma venda antiga cujo estoque já foi baixado, desmarque a opção; o cancelamento dessa venda não devolve unidades ao estoque.
+- Uma venda lançada no painel pode ficar em produção ou entregue sem entrada, para permitir pagamento a prazo. Pedidos feitos pelo cliente no site continuam com a regra de entrada de pelo menos 50%. O campo de origem é definido pelo servidor e o cadastro manual exige login administrativo.
+- Em **Pedidos e vendas → Vendas e totais**, filtre datas, origem e cliente/referência. O relatório exibe vendido, recebido e saldo a receber, com paginação e totais de todos os registros do período. Orçamentos não confirmados e vendas canceladas não compõem esses totais. Os recebimentos são os valores acumulados registrados nessas vendas, não um fluxo de caixa pela data do pagamento.
+- Abra a venda para atualizar recebimentos, desconto e etapa. Se foi registrada sem movimentar estoque, a opção de baixar depois fica disponível. Vendas com estoque já baixado são desfeitas pelo cancelamento, que devolve as unidades reservadas uma única vez.
+- Produtos, pedidos e pagamentos anteriores são mantidos. A nova migração acrescenta origem, data da venda e dados do lançamento manual; não recria o banco.
+
+A apresentação do formulário foi conferida no navegador em uma prévia estática com dados demonstrativos. A gravação, a autorização, a baixa de estoque, os relatórios e a persistência foram verificados pelos testes da API. O fluxo administrativo completo no navegador e o layout móvel não foram exercitados nesta versão.

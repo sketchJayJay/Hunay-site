@@ -137,7 +137,62 @@ test('Pacote Coolify: autenticação, arquivos, estoque e persistência',async t
   assert.equal((await request(path,{method:'PATCH',body:{status:'arte',paid:0}})).status,200);assert.equal((await request('/api/orders/'+made.d.id)).d.total,0);assert.equal((await request('/api/store')).d.products.find(p=>p.id===bulkProduct.id).stock,99);
   assert.equal((await request(path,{method:'PATCH',body:{status:'cancelado',paid:0}})).status,200);assert.equal((await request('/api/store')).d.products.find(p=>p.id===bulkProduct.id).stock,100);
  });
- await t.test('Configurações, dados e sessão sobrevivem ao reinício',async()=>{const settings=(await request('/api/store')).d.settings;settings.pickupAddress='Endereço de teste persistente';await request('/api/admin/settings',{method:'PUT',body:settings});await stop(proc);await start();assert.equal((await request('/api/store')).d.settings.pickupAddress,settings.pickupAddress);assert.equal((await request('/api/orders/'+discountedOrder)).d.discount,3500);assert.equal((await request('/api/orders/'+discountedOrder)).d.total,37000);assert.equal((await request('/api/orders/'+id)).status,200);assert.equal((await request('/api/auth/session')).d.authenticated,true);});
+
+ let manualProduct,manualSale;
+ const manualPayload=(patch={})=>({id:crypto.randomUUID(),name:'Prefeitura Municipal de Teste',saleDate:'2026-01-20',status:'producao',paid:0,stockAction:'manual',reference:'EM-TESTE-MANUAL',items:[{productId:'manual-stock-test',qty:600,unitPrice:3200}],...patch});
+ const makeSale=(body,options={})=>request('/api/admin/sales',{method:'POST',body,...options});
+ await t.test('Venda manual exige administrador e registra prefeitura sem WhatsApp nem entrada',async()=>{
+  manualProduct={...product,id:'manual-stock-test',price:4000,stock:2000,quantityPrices:[{minQty:11,price:3500}]};assert.equal((await request('/api/admin/products',{method:'POST',body:manualProduct})).status,200);
+  const payload=manualPayload();assert.equal((await makeSale(payload,{authenticated:false})).status,403);assert.equal((await request('/api/admin/sales?from=2026-01-01&to=2026-12-31',{authenticated:false})).status,403);
+  const created=await makeSale(payload);assert.equal(created.status,201);manualSale=created.d;
+  assert.equal(manualSale.source,'manual');assert.equal(manualSale.phone,'');assert.equal(manualSale.total,1920000);assert.equal(manualSale.paid,0);assert.equal(manualSale.reserved,1);assert.equal(manualSale.items[0].priceSource,'manual');assert.equal(manualSale.sale_date,'2026-01-20');
+  assert.equal((await request('/api/store')).d.products.find(p=>p.id===manualProduct.id).stock,1400);
+  assert.equal((await makeSale(payload)).status,200);assert.equal((await request('/api/store')).d.products.find(p=>p.id===manualProduct.id).stock,1400);
+  assert.equal((await request('/api/orders/'+manualSale.id,{authenticated:false})).status,404);assert.equal((await request('/api/orders/'+manualSale.id+'?token='+manualSale.access_token,{authenticated:false})).status,200);
+ });
+ await t.test('Venda a prazo aceita entrega, recebimento parcial e desconto sem baixar duas vezes',async()=>{
+  const path='/api/admin/orders/'+manualSale.id;
+  const updated=await request(path,{method:'PATCH',body:{status:'entregue',paid:50000,discount:10000,discountReason:'Condição do contrato'}});assert.equal(updated.status,200);
+  const saved=(await request('/api/orders/'+manualSale.id)).d;assert.equal(saved.status,'entregue');assert.equal(saved.total,1910000);assert.equal(saved.total-saved.paid,1860000);assert.equal(saved.reserved,1);assert.equal((await request('/api/store')).d.products.find(p=>p.id===manualProduct.id).stock,1400);
+  const detail=await request(path);assert.equal(detail.status,200);assert.ok(detail.d.events.some(e=>e.message.includes('Venda registrada diretamente')));assert.ok(detail.d.events.some(e=>e.message.includes('baixa de estoque')));
+ });
+ await t.test('Venda antiga sem movimentar estoque não desconta nem devolve unidades no cancelamento',async()=>{
+  const saved=await makeSale(manualPayload({saleDate:'2026-02-10',reference:'HISTORICA-SEM-ESTOQUE',status:'entregue',stockAction:'none',items:[{productId:manualProduct.id,qty:5000}],paid:10000}));assert.equal(saved.status,201);assert.equal(saved.d.reserved,0);assert.equal(saved.d.items[0].price,3500);assert.equal(saved.d.items[0].priceSource,'quantity');
+  assert.equal((await request('/api/store')).d.products.find(p=>p.id===manualProduct.id).stock,1400);
+  assert.equal((await request('/api/admin/orders/'+saved.d.id,{method:'PATCH',body:{status:'cancelado',paid:10000}})).status,200);assert.equal((await request('/api/store')).d.products.find(p=>p.id===manualProduct.id).stock,1400);
+ });
+ await t.test('Falha de estoque na venda manual desfaz venda, eventos e baixas anteriores',async()=>{
+  const payload=manualPayload({items:[{productId:manualProduct.id,qty:100},{productId:manualProduct.id,qty:2000}]});
+  const created=await makeSale(payload);assert.equal(created.status,400);assert.equal((await request('/api/orders/'+payload.id)).status,404);assert.equal((await request('/api/store')).d.products.find(p=>p.id===manualProduct.id).stock,1400);
+  assert.ok(!(await request('/api/admin')).d.events.some(e=>e.order_id===payload.id));
+ });
+ await t.test('Item avulso e baixa posterior preservam o controle do estoque',async()=>{
+  const custom=await makeSale(manualPayload({reference:'SERVICO-AVULSO',saleDate:'2026-03-05',status:'entregue',discount:5000,paid:5000,paymentMethod:'Boleto',dueDate:'2026-12-01',items:[{name:'Serviço de personalização',qty:2,unitPrice:12500}]}));assert.equal(custom.status,201);assert.equal(custom.d.total,20000);assert.equal(custom.d.reserved,0);assert.equal(custom.d.items[0].productId,'');assert.equal(custom.d.payment_method,'Boleto');assert.equal(custom.d.due_date,'2026-12-01');
+  const pending=await makeSale(manualPayload({saleDate:'2026-04-01',reference:'BAIXA-POSTERIOR',stockAction:'none',items:[{productId:manualProduct.id,qty:3}]}));assert.equal(pending.status,201);assert.equal(pending.d.reserved,0);
+  const path='/api/admin/orders/'+pending.d.id;
+  assert.equal((await request(path,{method:'PATCH',body:{status:'arte',paid:0,stockAction:'manual'}})).status,200);assert.equal((await request('/api/store')).d.products.find(p=>p.id===manualProduct.id).stock,1397);
+  assert.equal((await request(path,{method:'PATCH',body:{status:'producao',paid:0,stockAction:'manual'}})).status,200);assert.equal((await request('/api/store')).d.products.find(p=>p.id===manualProduct.id).stock,1397);
+  assert.equal((await request(path,{method:'PATCH',body:{status:'producao',paid:0,stockAction:'none'}})).status,400);assert.equal((await request(path,{method:'PATCH',body:{status:'cancelado',paid:0}})).status,200);assert.equal((await request('/api/store')).d.products.find(p=>p.id===manualProduct.id).stock,1400);
+ });
+ await t.test('Relatório filtra período, origem e referência; pagina sem perder os totais',async()=>{
+  let report=await request('/api/admin/sales?from=2026-01-01&to=2026-01-31&source=manual&q=EM-TESTE-MANUAL');assert.equal(report.status,200);assert.equal(report.d.summary.count,1);assert.equal(report.d.summary.total,1910000);assert.equal(report.d.summary.paid,50000);assert.equal(report.d.summary.due,1860000);
+  assert.equal((await request('/api/admin/sales?from=2026-01-01&to=2026-01-31&source=site&q=EM-TESTE-MANUAL')).d.summary.count,0);
+  assert.equal((await request('/api/admin/sales?from=2026-01-01&to=2026-12-31&q=%25')).d.summary.count,0);
+  for(let n=0;n<51;n++){const created=await makeSale(manualPayload({name:'Cliente da paginação '+n,reference:'PAGINACAO-MANUAL',saleDate:'2026-05-01',stockAction:'none',status:'entregue',items:[{name:'Item de teste',qty:1,unitPrice:1000}]}));assert.equal(created.status,201);}
+  report=await request('/api/admin/sales?from=2026-05-01&to=2026-05-31&q=PAGINACAO-MANUAL');assert.equal(report.d.summary.count,51);assert.equal(report.d.summary.total,51000);assert.equal(report.d.orders.length,50);assert.equal(report.d.pages,2);const all=(await request('/api/admin/sales?from=0001-01-01&to=9999-12-31')).d;assert.deepEqual((await request('/api/admin')).d.totals,all.summary);
+  const second=(await request('/api/admin/sales?from=2026-05-01&to=2026-05-31&q=PAGINACAO-MANUAL&page=2')).d;assert.equal(second.orders.length,1);assert.equal(second.summary.total,51000);
+  const cancelled=(await request('/api/admin/sales?from=2026-02-01&to=2026-02-28&q=HISTORICA-SEM-ESTOQUE')).d;assert.equal(cancelled.summary.count,0);
+ });
+ await t.test('Dados inválidos não criam vendas e não alteram o estoque',async()=>{
+  for(const patch of [{items:[]},{items:[{productId:manualProduct.id,qty:0}]},{items:[{productId:manualProduct.id,qty:1.5}]},{items:[{name:'Serviço',qty:1,unitPrice:-1}]},{saleDate:'2099-01-01'},{saleDate:'2026-02-30'},{saleDate:'2026-04-01',dueDate:'2026-03-01'},{phone:'12'},{customerDocument:'123'},{discount:999999999},{paid:999999999},{stockAction:'auto'}])assert.equal((await makeSale(manualPayload(patch))).status,400);
+  assert.equal((await request('/api/store')).d.products.find(p=>p.id===manualProduct.id).stock,1400);
+ });
+ await t.test('Cliente do site não pode criar venda manual nem liberar produção sem entrada',async()=>{
+  const created=await request('/api/orders',{method:'POST',body:{id:crypto.randomUUID(),name:'Teste do site',phone:'32999990000',shippingId:'pickup',source:'manual',stockAction:'none',items:[{productId:product.id,qty:1,unitPrice:1}]}});assert.equal(created.status,201);
+  const order=(await request('/api/orders/'+created.d.id)).d;assert.equal(order.source,'site');assert.equal(order.items[0].price,product.price);assert.ok(order.sale_date);
+  assert.equal((await request('/api/admin/orders/'+created.d.id,{method:'PATCH',body:{status:'arte',paid:0,source:'manual',stockAction:'manual'}})).status,400);
+ });
+ await t.test('Configurações, dados e sessão sobrevivem ao reinício',async()=>{const settings=(await request('/api/store')).d.settings;settings.pickupAddress='Endereço de teste persistente';await request('/api/admin/settings',{method:'PUT',body:settings});await stop(proc);await start();assert.equal((await request('/api/store')).d.settings.pickupAddress,settings.pickupAddress);assert.equal((await request('/api/orders/'+discountedOrder)).d.discount,3500);assert.equal((await request('/api/orders/'+discountedOrder)).d.total,37000);assert.equal((await request('/api/orders/'+manualSale.id)).d.source,'manual');assert.equal((await request('/api/orders/'+manualSale.id)).d.total,1910000);assert.equal((await request('/api/orders/'+id)).status,200);assert.equal((await request('/api/auth/session')).d.authenticated,true);});
  await t.test('Backup inclui banco e artes',async()=>{const out=await command(process.execPath,['server/backup.mjs'],{cwd:runtime,env:{...process.env,DATA_DIR:data},stdio:['ignore','pipe','pipe']});assert.match(out,/Backup criado:/);const folder=join(data,'backups');const names=await readdir(folder);assert.equal(names.length,1);const listing=await command('tar',['-tzf',join(folder,names[0])],{stdio:['ignore','pipe','pipe']});assert.match(listing,/hunay.sqlite/);assert.match(listing,/uploads\/art/);assert.match(listing,/auth-salt/);});
  await t.test('Troca de senha encerra sessões e preserva pedidos',async()=>{await stop(proc);currentPassword=randomBytes(22).toString('base64url');await start();assert.equal((await request('/api/auth/session')).d.authenticated,false);const login=await request('/api/auth/login',{method:'POST',body:{username:'admin',password:currentPassword}});assert.equal(login.status,200);cookie=login.r.headers.get('set-cookie').split(';')[0];assert.equal((await request('/api/orders/'+id)).status,200);await request('/api/auth/logout',{method:'POST',body:{}});assert.equal((await request('/api/auth/session')).d.authenticated,false);});
 });

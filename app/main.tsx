@@ -7,5 +7,6 @@ import Login from './login';
 import AppErrorBoundary from './error-boundary';
 import './globals.css';
 import './catalog-additions.css';
+import './manual-sales.css';
 const path=window.location.pathname.replace(/\/$/,'')||'/';
 createRoot(document.getElementById('root')!).render(<AppErrorBoundary>{path==='/admin'?<Login><AdminPanel/></Login>:path==='/pedido'?<Track/>:<Shop/>}</AppErrorBoundary>);
