@@ -30,7 +30,7 @@ Os exemplos são semeados uma única vez. Atualizações preservam o banco e arq
 
 ## Validação deste pacote
 
-Verificados: TypeScript, build de produção e 38 testes, incluindo login, arquivos privados, preços por quantidade e por cor, descontos, vendas manuais a prazo, estoque, relatórios, reinício, backup, troca de senha e atualização de um banco da versão anterior. A suíte de integração executa o runtime somente com `dist`, `server` e `package.json`, sem depender de `node_modules`.
+Verificados: TypeScript, build de produção e 39 testes, incluindo login, arquivos privados, preços por quantidade e por cor, descontos, vendas manuais a prazo, estoque, relatórios, reinício, backup, troca de senha e atualização de um banco da versão anterior. A suíte de integração executa o runtime somente com `dist`, `server` e `package.json`, sem depender de `node_modules`.
 
 A imagem Docker não foi construída neste ambiente, que não possui Docker. O teste final de domínio, HTTPS, volume e container deve ser feito após o deploy no Coolify.
 
@@ -103,3 +103,11 @@ Foi corrigida uma divergência entre a lista de pedidos e o financeiro: pedidos 
 - Nenhuma migração foi criada ou alterada. A atualização muda as consultas e os rótulos; não regrava valores, recebimentos, etapas ou estoque já registrados. Mantenha o mesmo volume `/data`.
 
 Validação: TypeScript, build de produção e **38 testes aprovados**. Há uma reprodução com venda de R$ 660 e pedido aguardando entrada de R$ 495, que somam R$ 1.155 de saldo; orçamentos sem confirmação e cancelados são mantidos fora da soma. Foram verificadas a igualdade entre a classificação SQL e a interface em todas as etapas, a conciliação entre resumo e relatório pela API, recebimento parcial, cancelamento, estoque sem movimentação indevida e atualização de banco antigo. A correção não foi implantada na VPS e não permite concluir, sem consultar os registros reais, se houve alguma venda perdida em outra atualização.
+
+## Correção 1.4.2 — build no Coolify
+
+O módulo compartilhado `server/order-finance.mjs` já estava no pacote e no repositório, mas a etapa de build do Dockerfile copiava apenas `app`, `lib` e `public`. Por isso a compilação falhava com `UNRESOLVED_IMPORT`. O Dockerfile agora inclui `COPY server ./server` antes de `RUN npm run build`.
+
+Foi acrescentado um teste que recria uma pasta isolada usando somente os arquivos copiados antes da compilação na etapa de build, reaproveitando as dependências instaladas do mesmo lockfile. O teste reproduziu o erro na versão anterior e compilou corretamente com a inclusão da pasta. TypeScript, build de produção e 39 testes passaram. A execução da imagem Docker em si não foi testada neste ambiente, que não possui Docker nem Podman.
+
+Esta correção não muda as migrações ou a localização dos dados. As regras financeiras da versão 1.4.1 permanecem no pacote. Atualize os arquivos no repositório e faça o deploy mantendo o mesmo volume `/data`.

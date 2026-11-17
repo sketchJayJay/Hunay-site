@@ -164,3 +164,17 @@ node server/backup.mjs
 Copie o arquivo indicado para fora da VPS. Atualize os arquivos no mesmo repositório e faça o deploy mantendo o nome do volume e o destino `/data`. Esta correção não exige criar, trocar ou restaurar banco de dados.
 
 Depois de atualizar, **Aguardando entrada** passa a entrar no financeiro mesmo sem pagamento. Orçamentos sem confirmação ficam identificados na lista e fora do saldo; cancelados também ficam fora. Os valores já registrados não são editados. O resumo da página inicial usa todo o histórico, enquanto **Vendas e totais** usa o período selecionado.
+
+## Correção 1.4.2 — erro de importação durante o build
+
+Se o log mostrar `Could not resolve ../../server/order-finance.mjs`, atualize o Dockerfile deste pacote. A etapa de build deve copiar a pasta `server` antes de compilar:
+
+```dockerfile
+COPY app ./app
+COPY lib ./lib
+COPY public ./public
+COPY server ./server
+RUN npm run build
+```
+
+Salve no mesmo repositório e refaça o deploy. Mantenha o volume existente e o destino `/data`.
