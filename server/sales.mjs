@@ -1,4 +1,5 @@
 import {sqlite} from './runtime.mjs';
+import {saleWhere as confirmedSalesWhere} from './order-finance.mjs';
 import {int,str,shapeOrder} from './store.mjs';
 import {transaction,updateOrderInTransaction} from './inventory.mjs';
 import {priceForQuantity,quantitiesByProduct} from './pricing.mjs';
@@ -57,7 +58,6 @@ export function createManualSale(b){return transaction(()=>{
  return {created:true,order:shapeOrder(sqlite.prepare('SELECT * FROM orders WHERE id=?').get(id))};
 });}
 
-const confirmedSalesWhere="status!='cancelado' AND (source='manual' OR paid>0 OR reserved=1 OR status IN ('arte','aprovacao','producao','pronto','entregue'))";
 export function salesTotals(){return sqlite.prepare('SELECT COUNT(*) AS count,COALESCE(SUM(total),0) AS total,COALESCE(SUM(paid),0) AS paid,COALESCE(SUM(total-paid),0) AS due FROM orders WHERE '+confirmedSalesWhere).get();}
 export function salesReport(params){
  const today=todayBrazil(),from=date(params.get('from')||today.slice(0,7)+'-01',true),to=date(params.get('to')||today,true);

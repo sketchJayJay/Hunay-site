@@ -430,3 +430,13 @@ a.brand .brand-mark img{position:absolute;width:90px;height:auto;max-width:none;
 
 .cart-item>div>.text-button{display:flex;width:max-content;margin:7px 0 12px;font-size:12px;min-height:28px}
 .cart-item>div>strong{display:block}
+
+/* Financial totals and row labels use the same order classification. */
+.finance-rules{border:1px solid #dbe3d2;background:#f9fbf3;border-radius:12px;margin:0 0 27px;color:#4a6041}
+.finance-rules>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:17px 20px;font-size:12px;cursor:pointer;flex-wrap:wrap}
+.finance-rules>summary::-webkit-details-marker{display:none}
+.finance-rules>summary>svg{flex:none}
+.finance-rules>summary>span{margin-left:auto;font-size:11px;color:#66775b}
+.finance-rules>p{padding:0 20px 19px;margin:0;font-size:12px;line-height:1.85;color:#536449}
+.order-value>small{white-space:normal;line-height:1.6;max-width:160px}
+@media(max-width:650px){.finance-rules>summary{padding:15px;font-size:12px}.finance-rules>summary>span{margin-left:26px;flex-basis:100%}.finance-rules>p{padding:0 15px 16px}.order-value>small{max-width:115px}}

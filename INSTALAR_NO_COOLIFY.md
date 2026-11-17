@@ -152,3 +152,15 @@ No painel, clique em **Nova venda**:
 Em **Pedidos e vendas → Vendas e totais**, consulte por período, origem e cliente/referência. Ali aparecem valor vendido, valores recebidos e saldo a receber, com totais completos do período. Vendas canceladas e orçamentos ainda não confirmados ficam fora dos totais.
 
 A baixa automática das vendas manuais é feita uma única vez. Se faltar estoque, a venda e as baixas parciais são desfeitas na mesma transação; reponha o estoque ou registre sem movimentação. Os pedidos do site continuam exigindo pelo menos 50% de entrada para liberar a arte e a produção.
+
+## Correção 1.4.1 — conferência do saldo a receber
+
+Antes de atualizar uma loja em uso, gere uma cópia dos dados atuais pelo terminal da aplicação:
+
+```bash
+node server/backup.mjs
+```
+
+Copie o arquivo indicado para fora da VPS. Atualize os arquivos no mesmo repositório e faça o deploy mantendo o nome do volume e o destino `/data`. Esta correção não exige criar, trocar ou restaurar banco de dados.
+
+Depois de atualizar, **Aguardando entrada** passa a entrar no financeiro mesmo sem pagamento. Orçamentos sem confirmação ficam identificados na lista e fora do saldo; cancelados também ficam fora. Os valores já registrados não são editados. O resumo da página inicial usa todo o histórico, enquanto **Vendas e totais** usa o período selecionado.

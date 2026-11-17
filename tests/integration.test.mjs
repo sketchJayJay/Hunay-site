@@ -183,6 +183,31 @@ test('Pacote Coolify: autenticação, arquivos, estoque e persistência',async t
   const second=(await request('/api/admin/sales?from=2026-05-01&to=2026-05-31&q=PAGINACAO-MANUAL&page=2')).d;assert.equal(second.orders.length,1);assert.equal(second.summary.total,51000);
   const cancelled=(await request('/api/admin/sales?from=2026-02-01&to=2026-02-28&q=HISTORICA-SEM-ESTOQUE')).d;assert.equal(cancelled.summary.count,0);
  });
+ await t.test('Resumo e relatório incluem Aguardando entrada e preservam os orçamentos sem confirmação',async()=>{
+  const before=(await request('/api/admin')).d.totals;
+  const p={...product,id:'finance-141-test',name:'Produto da conciliação',price:49500,stock:100,quantityPrices:[]};
+  assert.equal((await request('/api/admin/products',{method:'POST',body:p})).status,200);
+  const makeQuote=name=>request('/api/orders',{method:'POST',body:{id:crypto.randomUUID(),name,phone:'32999990000',shippingId:'pickup',items:[{productId:p.id,qty:1}]}});
+  const quoted=await makeQuote('CONCILIACAO-141 orçamento');assert.equal(quoted.status,201);
+  assert.deepEqual((await request('/api/admin')).d.totals,before);
+  const pending=await makeQuote('CONCILIACAO-141 pedido');assert.equal(pending.status,201);
+  assert.equal((await request('/api/admin/orders/'+pending.d.id,{method:'PATCH',body:{status:'entrada',paid:0}})).status,200);
+  const manual=await makeSale(manualPayload({name:'CONCILIACAO-141 venda manual',reference:'CONCILIACAO-141',status:'arte',stockAction:'none',items:[{name:'Canecas para teste',qty:1,unitPrice:66000}]}));assert.equal(manual.status,201);
+  const report=await request('/api/admin/sales?from=0001-01-01&to=9999-12-31&q=CONCILIACAO-141');
+  assert.deepEqual(report.d.summary,{count:2,total:115500,paid:0,due:115500});
+  const totals=(await request('/api/admin')).d.totals;
+  assert.equal(totals.due-before.due,report.d.summary.due);assert.equal(totals.count-before.count,2);
+  const quote=(await request('/api/orders/'+quoted.d.id)).d;
+  assert.equal(quote.status,'orcamento');assert.equal(quote.paid,0);assert.equal(quote.total,49500);assert.equal(quote.reserved,0);
+  assert.equal((await request('/api/store')).d.products.find(x=>x.id===p.id).stock,100);
+  assert.equal((await request('/api/admin/orders/'+pending.d.id,{method:'PATCH',body:{status:'entrada',paid:10000}})).status,200);
+  let updated=(await request('/api/admin/sales?from=0001-01-01&to=9999-12-31&q=CONCILIACAO-141')).d;
+  assert.equal(updated.summary.due,105500);assert.equal(updated.summary.paid,10000);
+  assert.equal((await request('/api/admin/orders/'+pending.d.id,{method:'PATCH',body:{status:'cancelado',paid:10000}})).status,200);
+  updated=(await request('/api/admin/sales?from=0001-01-01&to=9999-12-31&q=CONCILIACAO-141')).d;
+  assert.deepEqual(updated.summary,{count:1,total:66000,paid:0,due:66000});
+  assert.equal((await request('/api/orders/'+pending.d.id)).d.paid,10000);
+ });
  await t.test('Dados inválidos não criam vendas e não alteram o estoque',async()=>{
   for(const patch of [{items:[]},{items:[{productId:manualProduct.id,qty:0}]},{items:[{productId:manualProduct.id,qty:1.5}]},{items:[{name:'Serviço',qty:1,unitPrice:-1}]},{saleDate:'2099-01-01'},{saleDate:'2026-02-30'},{saleDate:'2026-04-01',dueDate:'2026-03-01'},{phone:'12'},{customerDocument:'123'},{discount:999999999},{paid:999999999},{stockAction:'auto'}])assert.equal((await makeSale(manualPayload(patch))).status,400);
   assert.equal((await request('/api/store')).d.products.find(p=>p.id===manualProduct.id).stock,1400);

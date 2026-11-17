@@ -30,7 +30,7 @@ Os exemplos são semeados uma única vez. Atualizações preservam o banco e arq
 
 ## Validação deste pacote
 
-Verificados: TypeScript, build de produção e 34 testes, incluindo login, arquivos privados, preços por quantidade e por cor, descontos, vendas manuais a prazo, estoque, relatórios, reinício, backup, troca de senha e atualização de um banco da versão anterior. A suíte de integração executa o runtime somente com `dist`, `server` e `package.json`, sem depender de `node_modules`.
+Verificados: TypeScript, build de produção e 38 testes, incluindo login, arquivos privados, preços por quantidade e por cor, descontos, vendas manuais a prazo, estoque, relatórios, reinício, backup, troca de senha e atualização de um banco da versão anterior. A suíte de integração executa o runtime somente com `dist`, `server` e `package.json`, sem depender de `node_modules`.
 
 A imagem Docker não foi construída neste ambiente, que não possui Docker. O teste final de domínio, HTTPS, volume e container deve ser feito após o deploy no Coolify.
 
@@ -78,3 +78,28 @@ O botão **Nova venda** permite registrar vendas feitas presencialmente, pelo Wh
 - Produtos, pedidos e pagamentos anteriores são mantidos. A nova migração acrescenta origem, data da venda e dados do lançamento manual; não recria o banco.
 
 A apresentação do formulário foi conferida no navegador em uma prévia estática com dados demonstrativos. A gravação, a autorização, a baixa de estoque, os relatórios e a persistência foram verificados pelos testes da API. O fluxo administrativo completo no navegador e o layout móvel não foram exercitados nesta versão.
+
+## Atualização 1.4.0 — nova apresentação da Hunay
+
+- Vitrine em verde profundo, papel claro e rosé, com a marca original em destaque, fotos maiores e tipografia mais legível.
+- Entrada com acesso direto ao catálogo e ao editor; atalhos para a Hunay criar a arte, o cliente montar o presente ou escolher uma coleção.
+- Cartões de produtos com informações organizadas, cores e resumo das faixas de quantidade. Os detalhes completos continuam na escolha do produto.
+- Coleções, apresentação do personalizador, etapas do pedido, dúvidas e rodapé seguem a mesma identidade visual.
+- Painel com nova barra lateral, indicadores mais claros e botão **Nova venda** destacado na visão geral. No celular, a navegação fica na parte inferior.
+- Formulários, orçamento e personalização com espaçamento e contraste ajustados para telas menores.
+
+Atualização visual sem novas migrações. Mantém as configurações, produtos, pedidos, vendas e arquivos existentes ao preservar o mesmo volume em `/data`. O pagamento continua combinado pelo WhatsApp.
+
+Validação da versão: TypeScript, build de produção e 34 testes aprovados. A vitrine e os fluxos de filtro, escolha de cores, editor e orçamento foram conferidos na prévia do navegador, incluindo largura de celular. A aparência do painel foi conferida com uma renderização estática do componente real, sem login ou dados de clientes; a gravação administrativa permanece coberta pelos testes da API. A imagem Docker e o deploy na VPS não foram executados neste ambiente.
+
+## Correção 1.4.1 — saldo a receber e identificação de orçamentos
+
+Foi corrigida uma divergência entre a lista de pedidos e o financeiro: pedidos do site em **Aguardando entrada**, ainda sem recebimento, ficavam fora dos totais, enquanto suas linhas já mostravam um saldo a receber. A lista também chamava o valor de orçamentos não confirmados de “a receber”.
+
+- Uma regra compartilhada pela API e pela interface passa a incluir **Aguardando entrada** nos totais de vendas, junto das vendas manuais, pedidos com recebimento ou reserva e etapas de arte até entrega.
+- Orçamentos sem confirmação aparecem como **Orçamento a confirmar**; cancelados aparecem como **Cancelado · fora do saldo**. Esses registros continuam disponíveis na lista, sem compor os totais de vendas. Um orçamento que já tem recebimento continua no financeiro.
+- O painel esclarece que o resumo usa todo o histórico; o relatório **Vendas e totais** respeita as datas, origem e busca selecionadas.
+- Para confirmar um orçamento aceito sem pagamento, abra o pedido, selecione **Aguardando entrada** e salve. Isso inclui a venda no financeiro. A regra de reserva de estoque do site continua exigindo pelo menos 50% de entrada.
+- Nenhuma migração foi criada ou alterada. A atualização muda as consultas e os rótulos; não regrava valores, recebimentos, etapas ou estoque já registrados. Mantenha o mesmo volume `/data`.
+
+Validação: TypeScript, build de produção e **38 testes aprovados**. Há uma reprodução com venda de R$ 660 e pedido aguardando entrada de R$ 495, que somam R$ 1.155 de saldo; orçamentos sem confirmação e cancelados são mantidos fora da soma. Foram verificadas a igualdade entre a classificação SQL e a interface em todas as etapas, a conciliação entre resumo e relatório pela API, recebimento parcial, cancelamento, estoque sem movimentação indevida e atualização de banco antigo. A correção não foi implantada na VPS e não permite concluir, sem consultar os registros reais, se houve alguma venda perdida em outra atualização.
