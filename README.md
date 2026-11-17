@@ -78,3 +78,16 @@ O botão **Nova venda** permite registrar vendas feitas presencialmente, pelo Wh
 - Produtos, pedidos e pagamentos anteriores são mantidos. A nova migração acrescenta origem, data da venda e dados do lançamento manual; não recria o banco.
 
 A apresentação do formulário foi conferida no navegador em uma prévia estática com dados demonstrativos. A gravação, a autorização, a baixa de estoque, os relatórios e a persistência foram verificados pelos testes da API. O fluxo administrativo completo no navegador e o layout móvel não foram exercitados nesta versão.
+
+## Atualização 1.4.0 — nova apresentação da Hunay
+
+- Vitrine em verde profundo, papel claro e rosé, com a marca original em destaque, fotos maiores e tipografia mais legível.
+- Entrada com acesso direto ao catálogo e ao editor; atalhos para a Hunay criar a arte, o cliente montar o presente ou escolher uma coleção.
+- Cartões de produtos com informações organizadas, cores e resumo das faixas de quantidade. Os detalhes completos continuam na escolha do produto.
+- Coleções, apresentação do personalizador, etapas do pedido, dúvidas e rodapé seguem a mesma identidade visual.
+- Painel com nova barra lateral, indicadores mais claros e botão **Nova venda** destacado na visão geral. No celular, a navegação fica na parte inferior.
+- Formulários, orçamento e personalização com espaçamento e contraste ajustados para telas menores.
+
+Atualização visual sem novas migrações. Mantém as configurações, produtos, pedidos, vendas e arquivos existentes ao preservar o mesmo volume em `/data`. O pagamento continua combinado pelo WhatsApp.
+
+Validação da versão: TypeScript, build de produção e 34 testes aprovados. A vitrine e os fluxos de filtro, escolha de cores, editor e orçamento foram conferidos na prévia do navegador, incluindo largura de celular. A aparência do painel foi conferida com uma renderização estática do componente real, sem login ou dados de clientes; a gravação administrativa permanece coberta pelos testes da API. A imagem Docker e o deploy na VPS não foram executados neste ambiente.
